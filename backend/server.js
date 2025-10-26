@@ -25,26 +25,42 @@ app.post("/transcrever", upload.single("file"), async (req, res) => {
   console.log(`MIME type recebido: ${req.file.mimetype}`);
   console.log(`Arquivo salvo em: ${originalPath}`);
 
-  // Converter para WAV
-  try {
-    await new Promise((resolve, reject) => {
-      ffmpeg(originalPath)
-        .toFormat("wav")
-        .on("error", (err) => {
-          console.error("Erro ao converter para WAV:", err);
-          reject(err);
-        })
-        .on("end", () => {
-          console.log(`Arquivo convertido para WAV: ${convertedPath}`);
-          resolve();
-        })
-        .save(convertedPath);
-    });
-  } catch (err) {
-    fs.unlinkSync(originalPath);
-    return res.status(500).json({ error: "Falha na conversão de áudio." });
-  }
+  // Converter para WAV (com logs e caminho absoluto)
+try {
+  await new Promise((resolve, reject) => {
+    const absoluteInput = path.resolve(originalPath);
+    const absoluteOutput = path.resolve("uploads", `${req.file.filename}.wav`);
 
+    console.log(`🎧 Iniciando conversão: ${absoluteInput} -> ${absoluteOutput}`);
+
+    ffmpeg(absoluteInput)
+      .inputOptions(["-y"]) // sobrescrever sem perguntar
+      .audioCodec("pcm_s16le")
+      .audioFrequency(16000) // whisper funciona melhor com 16kHz
+      .format("wav")
+      .on("start", (cmd) => console.log("Comando FFmpeg:", cmd))
+      .on("stderr", (line) => console.log("FFmpeg:", line))
+      .on("error", (err) => {
+        console.error("❌ Erro ao converter:", err.message);
+        reject(err);
+      })
+      .on("end", () => {
+        console.log(`✅ Conversão concluída: ${absoluteOutput}`);
+        resolve();
+      })
+      .save(absoluteOutput);
+  });
+} catch (err) {
+  console.error("Erro na etapa de conversão:", err);
+  fs.unlinkSync(originalPath);
+  return res.status(500).json({ error: "Falha na conversão de áudio." });
+}
+
+console.log("🔑 OPENAI_API_KEY:", process.env.OPENAI_API_KEY?.slice(0,4) + "…");
+if (!fs.existsSync(convertedPath)) {
+  fs.unlinkSync(originalPath);
+  return res.status(500).json({ error: "Arquivo WAV não encontrado após conversão." });
+}
   // Transcrever com OpenAI
   try {
     const response = await openai.audio.transcriptions.create({
@@ -52,10 +68,10 @@ app.post("/transcrever", upload.single("file"), async (req, res) => {
       model: "whisper-1",
       language: "pt"
     });
-
+    console.log("📝 Transcrição concluída:", response.text);
     // Limpar arquivos temporários
     fs.unlinkSync(originalPath);
-    fs.unlinkSync(convertedPath);
+    //fs.unlinkSync(convertedPath);
 
     res.json({ transcricao: response.text });
   } catch (err) {
@@ -64,6 +80,15 @@ app.post("/transcrever", upload.single("file"), async (req, res) => {
     if (fs.existsSync(convertedPath)) fs.unlinkSync(convertedPath);
     res.status(500).json({ error: "Erro ao transcrever o áudio." });
   }
+  
 });
 
 app.listen(3000, () => console.log("Servidor rodando na porta 3000"));
+
+
+const uploadsDir = path.join(process.cwd(), "uploads");
+console.log("📁 Verificando pasta uploads:", uploadsDir);
+console.log("📂 Existe?", fs.existsSync(uploadsDir));
+console.log("📑 Conteúdo:", fs.existsSync(uploadsDir) ? fs.readdirSync(uploadsDir) : "Pasta não encontrada");
+
+console.log("🔑 OPENAI_API_KEY:", process.env.OPENAI_API_KEY?.slice(0,4) + "…");

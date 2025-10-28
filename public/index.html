@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LearnAI - Transcrição de Áudio</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    button { padding: .8rem 1.2rem; margin-right: .6rem; }
+    pre { background: #f7f7f8; padding: 1rem; border-radius: .5rem; white-space: pre-wrap; }
+    .vu-wrap{margin:.75rem 0 1rem}
+.vu-bg{
+  position:relative; height:12px; border-radius:6px;
+  background:linear-gradient(90deg,#f0f2f5 0%,#f0f2f5 100%);
+  overflow:hidden; box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)
+}
+.vu-fill{
+  height:100%; width:0%;
+  background:linear-gradient(90deg,#63b3ed,#48bb78);
+  transition:width .08s linear;
+}
+.vu-threshold{
+  position:absolute; top:0; bottom:0; width:2px;
+  background:rgba(220,38,38,.9); /* vermelho */
+  transform:translateX(-1px);
+}
+.vu-readout{font-size:.9rem; color:#555; margin-top:.25rem}
+  </style>
+</head>
+<body>
+  <h1>🎙️ LearnAI - Transcrição de Áudio</h1>
+  <button id="startBtn">Iniciar Gravação</button>
+  <button id="stopBtn" disabled>Parar Gravação</button>
+  <p id="status">Aguardando gravação...</p>
+
+  <!-- VU meter -->
+<div class="vu-wrap" aria-label="indicador de volume">
+  <div class="vu-bg">
+    <div class="vu-fill" id="vuFill"></div>
+    <div class="vu-threshold" id="vuThreshold"></div>
+  </div>
+  <div class="vu-readout">
+    <span id="vuValue">0%</span> • threshold: <code id="vuThreshText">0.01</code>
+  </div>
+</div>
+
+  <pre id="transcricao"></pre>
+
+  <script>
+  let mediaRecorder;
+  let audioChunks = [];
+  let currentMime = '';
+
+  // Web Audio / VU
+  let audioContext, analyser, source, monitorInterval;
+  let rmsSmooth = 0; // suavização do VU (EMA)
+
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const status = document.getElementById('status');
+  const transcricao = document.getElementById('transcricao');
+
+  // VU elements
+  const vuFill = document.getElementById('vuFill');
+  const vuValue = document.getElementById('vuValue');
+  const vuThreshText = document.getElementById('vuThreshText');
+  const vuThreshold = document.getElementById('vuThreshold');
+
+  // ======= Parâmetros de silêncio (ajustáveis) =======
+  const SILENCE_THRESHOLD = 0.01; // 0–1 (quanto menor, mais sensível)
+  const SILENCE_DURATION  = 2000; // ms de silêncio para parar automaticamente
+  const PROBE_INTERVAL    = 100;  // ms entre medições
+  const VU_SMOOTHING      = 0.85; // 0–1 (maior = mais suave)
+
+  // atualiza texto/posição do threshold no VU
+  function syncThresholdMarker() {
+    vuThreshText.textContent = String(SILENCE_THRESHOLD);
+    // posição em % (threshold é no domínio 0..1 -> usar 35x fator para “espalhar” melhor)
+    // mapeamento: % = clamp( (rms*100*VU_GAIN), 0, 100 )
+    const VU_GAIN = 35; // deixa a barra “mais viva”
+    const posPct = Math.max(0, Math.min(100, SILENCE_THRESHOLD * 100 * VU_GAIN));
+    vuThreshold.style.left = posPct + '%';
+  }
+  syncThresholdMarker();
+
+  function pickBestAudioMime() {
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/mp4;codecs=alac', // iOS Safari
+      'audio/mp4',
+      'audio/wav'
+    ];
+    for (const c of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+        return c;
+      }
+    }
+    return '';
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+
+      currentMime = pickBestAudioMime();
+      mediaRecorder = currentMime
+        ? new MediaRecorder(stream, { mimeType: currentMime })
+        : new MediaRecorder(stream);
+
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data && e.data.size) audioChunks.push(e.data); };
+      mediaRecorder.onstop = handleStop;
+
+      mediaRecorder.start();
+      status.textContent = '🎤 Gravando... (paro automático ao detectar silêncio)';
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      startSilenceDetection(stream);
+    } catch (err) {
+      console.error(err);
+      status.textContent = '❌ Erro ao acessar o microfone (precisa https ou http://localhost).';
+    }
+  }
+
+  function startSilenceDetection(stream) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    source = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    source.connect(analyser);
+
+    const buf = new Float32Array(analyser.fftSize);
+    let silenceStart = performance.now();
+
+    monitorInterval = setInterval(() => {
+      analyser.getFloatTimeDomainData(buf);
+
+      // RMS do sinal
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+      const rms = Math.sqrt(sum / buf.length);
+
+      // VU smoothing (exponential moving average)
+      rmsSmooth = VU_SMOOTHING * rmsSmooth + (1 - VU_SMOOTHING) * rms;
+      updateVu(rmsSmooth);
+
+      if (rms < SILENCE_THRESHOLD) {
+        if (performance.now() - silenceStart >= SILENCE_DURATION) {
+          stopRecording();
+        }
+      } else {
+        silenceStart = performance.now();
+      }
+    }, PROBE_INTERVAL);
+  }
+
+  function updateVu(rms) {
+    // ganho pra “espalhar” melhor (rms nativo é muito baixo)
+    const VU_GAIN = 35; // mantenha igual ao usado no marker
+    const pct = Math.max(0, Math.min(100, rms * 100 * VU_GAIN));
+    vuFill.style.width = pct + '%';
+    vuValue.textContent = Math.round(pct) + '%';
+  }
+
+  function stopSilenceDetection() {
+    if (monitorInterval) { clearInterval(monitorInterval); monitorInterval = null; }
+    if (audioContext) { audioContext.close().catch(()=>{}); audioContext = null; }
+    analyser = null; source = null; rmsSmooth = 0;
+    updateVu(0);
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      status.textContent = '🛑 Silêncio detectado. Parando gravação...';
+      mediaRecorder.stop();
+      stopSilenceDetection();
+      // opcional: liberar o microfone
+      // mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    }
+  }
+
+  async function handleStop() {
+    const blob = new Blob(audioChunks, { type: currentMime || mediaRecorder.mimeType || 'audio/webm' });
+    const ext = blob.type.includes('ogg') ? 'ogg'
+             : blob.type.includes('webm') ? 'webm'
+             : blob.type.includes('mp4') ? 'm4a'
+             : 'wav';
+    const formData = new FormData();
+    formData.append('file', blob, `gravacao.${ext}`);
+
+    status.textContent = '⏳ Enviando áudio para o servidor...';
+    try {
+      const response = await fetch('/transcrever', { method: 'POST', body: formData });
+      if (!response.ok) throw new Error(`Erro do servidor: ${response.status}`);
+      const data = await response.json();
+      transcricao.textContent = data.transcricao || 'Nenhuma transcrição retornada.';
+      status.textContent = '✅ Transcrição concluída!';
+    } catch (err) {
+      console.error(err);
+      status.textContent = `❌ Erro: ${err.message}`;
+    } finally {
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+  }
+
+  startBtn.addEventListener('click', startRecording);
+  stopBtn.addEventListener('click', stopRecording);
+</script>
+</body>
+</html>

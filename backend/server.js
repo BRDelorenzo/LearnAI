@@ -10,6 +10,23 @@ import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { fileURLToPath } from 'url';
 
+
+// ✅ [Sanity Check da chave API]
+const raw = process.env.OPENAI_API_KEY || '';
+const trimmed = raw.trim();
+
+console.log('🔑 raw prefix/len:', raw ? raw.slice(0, 12) + '…' : '(vazia)', raw.length);
+console.log('🔑 tri prefix/len:', trimmed ? trimmed.slice(0, 12) + '…' : '(vazia)', trimmed.length);
+
+// Mostra os códigos ASCII dos 3 últimos caracteres -> detecta espaço/CR/LF invisível
+const tail = raw.slice(-3);
+console.log('🔚 tail chars (charCode):', [...tail].map(ch => ch.charCodeAt(0)));
+
+// 🔧 Use sempre a chave "limpa" (trimmed) para criar o client
+const openai = new OpenAI({
+  apiKey: trimmed
+});
+
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -57,7 +74,7 @@ const upload = multer({
 });
 
 /* ---------- OpenAI ---------- */
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+//const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /* ---------- Health ---------- */
 app.get('/health', (_, res) => res.json({ ok: true, ts: Date.now() }));
@@ -113,6 +130,29 @@ app.post('/transcrever', upload.single('file'), async (req, res) => {
     res.status(500).json({ error: 'Erro ao transcrever o áudio.' });
   } finally {
     try { fs.unlinkSync(wavPath); } catch {}
+  }
+});
+
+
+// Texto → resposta da OpenAI
+app.post('/chat', express.json(), async (req, res) => {
+  const { text } = req.body || {};
+  if (!text) return res.status(400).json({ error: 'texto ausente' });
+
+  try {
+    const r = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'Você é um assistente de estudos de línguas. Responda de forma breve e útil.' },
+        { role: 'user', content: text }
+      ],
+      temperature: 0.2
+    });
+    const reply = r.choices?.[0]?.message?.content || '';
+    res.json({ reply });
+  } catch (e) {
+    console.error('chat error', e?.response?.data || e);
+    res.status(500).json({ error: 'falha no chat' });
   }
 });
 

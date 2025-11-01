@@ -1,217 +1,319 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LearnAI - Transcrição de Áudio</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-    button { padding: .8rem 1.2rem; margin-right: .6rem; }
-    pre { background: #f7f7f8; padding: 1rem; border-radius: .5rem; white-space: pre-wrap; }
-    .vu-wrap{margin:.75rem 0 1rem}
-.vu-bg{
-  position:relative; height:12px; border-radius:6px;
-  background:linear-gradient(90deg,#f0f2f5 0%,#f0f2f5 100%);
-  overflow:hidden; box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)
-}
-.vu-fill{
-  height:100%; width:0%;
-  background:linear-gradient(90deg,#63b3ed,#48bb78);
-  transition:width .08s linear;
-}
-.vu-threshold{
-  position:absolute; top:0; bottom:0; width:2px;
-  background:rgba(220,38,38,.9); /* vermelho */
-  transform:translateX(-1px);
-}
-.vu-readout{font-size:.9rem; color:#555; margin-top:.25rem}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LearnAI</title>
+<style>
+  :root{
+    --bg:#0b0b0d; --panel:#111114; --muted:#9aa0a6; --text:#e8eaed;
+    --chip:#1a1b1f; --chipText:#e8eaed; --primary:#6d6bf9; --accent:#22c55e;
+    --danger:#ef4444; --border:#24252a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
+  .app{display:grid;grid-template-columns:280px 1fr;min-height:100dvh}
+  /* sidebar */
+  .sidebar{background:#0f1013;border-right:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:12px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .hamb{display:none}
+  .brand .logo{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#7c3aed,#22d3ee);display:inline-block}
+  .brand strong{font-weight:600}
+  .upgrade{align-self:center;background:#2a2378;color:#c7c5ff;border:0;padding:8px 14px;border-radius:999px}
+  .hist-title{opacity:.8;margin:8px 0 4px 2px;font-size:.9rem}
+  .hist{overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px}
+  .hist button{width:100%;text-align:left;background:transparent;border:1px solid var(--border);color:var(--text);
+    padding:10px;border-radius:10px;opacity:.9;cursor:pointer}
+  .hist button:hover{background:#15161a}
+  .hist .empty{color:var(--muted);font-size:.9rem;padding:10px}
+  /* main */
+  .main{display:grid;grid-template-rows:auto 1fr auto;min-height:100dvh}
+  .topbar{display:flex;align-items:center;gap:8px;justify-content:center;padding:10px;position:sticky;top:0;background:linear-gradient(#0b0b0de6,#0b0b0de6)}
+  .topbar .upgrade{background:#2a2378}
+  .chat{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+  .msg{max-width:720px;margin:0 auto;border:1px solid var(--border);background:var(--panel);border-radius:16px;padding:14px 16px;line-height:1.45}
+  .msg.me{border-color:#2c2e33;background:#14151a}
+  .chips{position:fixed;left:0;right:0;bottom:86px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;padding:0 16px}
+  .chip{background:var(--chip);color:var(--chipText);border:1px solid var(--border);border-radius:16px;padding:12px 14px;min-width:180px;max-width:300px}
+  .chip b{display:block;margin-bottom:6px}
+  /* composer */
+  .composer-wrap{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,#0b0b0d 40% 100%),#0b0b0d;padding:10px 12px}
+  .composer{max-width:920px;margin:0 auto;display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center}
+  .btn{height:48px;min-width:48px;border-radius:14px;border:1px solid var(--border);background:#14151a;color:var(--text);display:inline-grid;place-items:center;cursor:pointer}
+  .btn:hover{background:#17181d}
+  .plus{font-size:24px}
+  .input{height:48px;border-radius:14px;border:1px solid var(--border);background:#14151a;color:var(--text);padding:0 14px;width:100%}
+  .send{min-width:48px}
+  .mic{position:relative;overflow:hidden}
+  .mic.rec{outline:2px solid var(--accent);box-shadow:0 0 0 4px #22c55e1f}
+  .vu{position:absolute;inset:0;border-radius:14px;pointer-events:none}
+  .vu .fill{position:absolute;left:0;bottom:0;height:100%;width:0%;background:linear-gradient(90deg,#60a5fa,#22c55e);opacity:.25}
+  .status{max-width:920px;margin:6px auto 0;color:var(--muted);font-size:.9rem;padding:0 4px}
+  /* mobile */
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr}
+    .sidebar{position:fixed;inset:0 30% 0 0;z-index:30;transform:translateX(-105%);transition:transform .2s ease}
+    .sidebar.open{transform:translateX(0)}
+    .hamb{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:10px;border:1px solid var(--border);background:#14151a;cursor:pointer}
+    .topbar{justify-content:space-between;padding:10px 12px}
+  }
+</style>
 </head>
 <body>
-  <h1>🎙️ LearnAI - Transcrição de Áudio</h1>
-  <button id="startBtn">Iniciar Gravação</button>
-  <button id="stopBtn" disabled>Parar Gravação</button>
-  <p id="status">Aguardando gravação...</p>
+<div class="app">
+  <!-- SIDEBAR / HISTÓRICO -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo"></span>
+      <strong>LearnAI</strong>
+    </div>
+    <div class="hist-title">Histórico</div>
+    <div class="hist" id="historyList">
+      <div class="empty">Sem conversas ainda.</div>
+    </div>
+  </aside>
 
-  <!-- VU meter -->
-<div class="vu-wrap" aria-label="indicador de volume">
-  <div class="vu-bg">
-    <div class="vu-fill" id="vuFill"></div>
-    <div class="vu-threshold" id="vuThreshold"></div>
-  </div>
-  <div class="vu-readout">
-    <span id="vuValue">0%</span> • threshold: <code id="vuThreshText">0.01</code>
-  </div>
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <button class="hamb" id="hamb">☰</button>
+      <span style="width:42px"></span>
+    </div>
+
+    <!-- CHAT MESSAGES -->
+    <section class="chat" id="chat"></section>
+
+    <!-- SUGESTÕES -->
+
+    <!-- COMPOSER -->
+    <div class="composer-wrap">
+      <div class="composer">
+        <button class="btn plus" id="addBtn">+</button>
+        <input class="input" id="textInput" placeholder="Pergunte alguma coisa" />
+        <button class="btn mic" id="micBtn" aria-label="Gravar áudio">
+          🎙️
+          <div class="vu"><div class="fill" id="vuFill"></div></div>
+        </button>
+        <button class="btn send" id="sendBtn" aria-label="Enviar">➤</button>
+      </div>
+      <div class="status" id="status">Aguardando…</div>
+    </div>
+  </main>
 </div>
 
-  <pre id="transcricao"></pre>
+<script>
+/** -------------------- State / DOM -------------------- **/
+const chatEl = document.getElementById('chat');
+const textInput = document.getElementById('textInput');
+const sendBtn = document.getElementById('sendBtn');
+const micBtn = document.getElementById('micBtn');
+const vuFill = document.getElementById('vuFill');
+const statusEl = document.getElementById('status');
+const chipsEl = document.getElementById('chips');
+const historyList = document.getElementById('historyList');
+const sidebar = document.getElementById('sidebar');
+const hamb = document.getElementById('hamb');
 
-  <script>
-  let mediaRecorder;
-  let audioChunks = [];
-  let currentMime = '';
+let mediaRecorder, chunks = [], mime = '';
+let audioContext, analyser, monitorInterval, rmsSmooth = 0;
+let currentThreadId = loadLastThreadId();
 
-  // Web Audio / VU
-  let audioContext, analyser, source, monitorInterval;
-  let rmsSmooth = 0; // suavização do VU (EMA)
+/** -------------------- UI helpers -------------------- **/
+function addMsg(text, who='me'){
+  const div = document.createElement('div');
+  div.className = 'msg ' + (who === 'me' ? 'me' : 'bot');
+  div.textContent = text;
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+function setStatus(msg){ statusEl.textContent = msg; }
+function fmtTitle(s){ return (s || 'Sem título').slice(0, 40); }
 
-  const startBtn = document.getElementById('startBtn');
-  const stopBtn = document.getElementById('stopBtn');
-  const status = document.getElementById('status');
-  const transcricao = document.getElementById('transcricao');
+/** -------------------- Histórico (localStorage) -------------------- **/
+function loadThreads(){ return JSON.parse(localStorage.getItem('threads') || '{}'); }
+function saveThreads(obj){ localStorage.setItem('threads', JSON.stringify(obj)); }
+function loadLastThreadId(){ return localStorage.getItem('lastThreadId') || null; }
+function setLastThreadId(id){ localStorage.setItem('lastThreadId', id); }
+function newThread(title){
+  const id = Date.now().toString(36);
+  const threads = loadThreads();
+  threads[id] = { id, title, messages: [] };
+  saveThreads(threads); setLastThreadId(id);
+  renderHistory(); return id;
+}
+function pushMsgToThread(id, msg){
+  const threads = loadThreads();
+  if(!threads[id]) return;
+  threads[id].messages.push(msg);
+  if(!threads[id].title && msg.role==='user') threads[id].title = fmtTitle(msg.text);
+  saveThreads(threads); renderHistory();
+}
+function renderHistory(){
+  const threads = loadThreads();
+  historyList.innerHTML = '';
+  const ids = Object.keys(threads).sort((a,b)=> (threads[b].id-threads[a].id));
+  if(!ids.length){ historyList.innerHTML = '<div class="empty">Sem conversas ainda.</div>'; return; }
+  ids.forEach(id=>{
+    const b = document.createElement('button');
+    b.textContent = fmtTitle(threads[id].title || 'Sem título');
+    b.onclick = ()=> { openThread(id); };
+    historyList.appendChild(b);
+  });
+}
+function openThread(id){
+  const threads = loadThreads();
+  const t = threads[id]; if(!t) return;
+  currentThreadId = id; setLastThreadId(id);
+  chatEl.innerHTML=''; t.messages.forEach(m=> addMsg(m.text, m.role==='user'?'me':'bot'));
+  setStatus('Conversando…');
+  if (window.innerWidth < 900) sidebar.classList.remove('open');
+}
+renderHistory();
+if(!currentThreadId){ currentThreadId = newThread(''); }
+else { openThread(currentThreadId); }
 
-  // VU elements
-  const vuFill = document.getElementById('vuFill');
-  const vuValue = document.getElementById('vuValue');
-  const vuThreshText = document.getElementById('vuThreshText');
-  const vuThreshold = document.getElementById('vuThreshold');
+/** -------------------- Chips -------------------- **/
+chipsEl.addEventListener('click', (e)=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  const text = chip.querySelector('b').textContent + ' ' + chip.querySelector('div').textContent;
+  textInput.value = text;
+  textInput.focus();
+});
 
-  // ======= Parâmetros de silêncio (ajustáveis) =======
-  const SILENCE_THRESHOLD = 0.01; // 0–1 (quanto menor, mais sensível)
-  const SILENCE_DURATION  = 2000; // ms de silêncio para parar automaticamente
-  const PROBE_INTERVAL    = 100;  // ms entre medições
-  const VU_SMOOTHING      = 0.85; // 0–1 (maior = mais suave)
+/** -------------------- Sidebar mobile -------------------- **/
+hamb?.addEventListener('click', ()=> sidebar.classList.toggle('open'));
 
-  // atualiza texto/posição do threshold no VU
-  function syncThresholdMarker() {
-    vuThreshText.textContent = String(SILENCE_THRESHOLD);
-    // posição em % (threshold é no domínio 0..1 -> usar 35x fator para “espalhar” melhor)
-    // mapeamento: % = clamp( (rms*100*VU_GAIN), 0, 100 )
-    const VU_GAIN = 35; // deixa a barra “mais viva”
-    const posPct = Math.max(0, Math.min(100, SILENCE_THRESHOLD * 100 * VU_GAIN));
-    vuThreshold.style.left = posPct + '%';
-  }
-  syncThresholdMarker();
+/** -------------------- Text Send -------------------- **/
+sendBtn.addEventListener('click', sendText);
+textInput.addEventListener('keydown', (e)=> {
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendText(); }
+});
 
-  function pickBestAudioMime() {
-    const candidates = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/ogg;codecs=opus',
-      'audio/ogg',
-      'audio/mp4;codecs=alac', // iOS Safari
-      'audio/mp4',
-      'audio/wav'
-    ];
-    for (const c of candidates) {
-      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
-        return c;
-      }
+async function sendText(){
+  const text = textInput.value.trim();
+  if(!text) return;
+  addMsg(text, 'me');
+  pushMsgToThread(currentThreadId, { role:'user', text });
+  textInput.value = '';
+  chipsEl.style.display = 'none';
+  setStatus('✉️ Enviando texto…');
+
+  try{
+    // rota opcional do backend; veja snippet abaixo
+    const res = await fetch('/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) });
+    if(!res.ok){
+      addMsg('⚠️ Backend /chat não encontrado. Resposta simulada no front.', 'bot');
+      setStatus('Pronto.');
+      return;
     }
-    return '';
+    const data = await res.json();
+    const reply = data.reply || '(sem resposta)';
+    addMsg(reply, 'bot');
+    pushMsgToThread(currentThreadId, { role:'assistant', text: reply });
+    setStatus('Pronto.');
+  }catch(err){
+    console.error(err);
+    addMsg('❌ Erro ao enviar texto: ' + err.message, 'bot');
+    setStatus('Erro.');
   }
+}
 
-  async function startRecording() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-      });
+/** -------------------- Captura de áudio (auto-stop) -------------------- **/
+const SILENCE = { TH: 0.01, DUR: 2000, PROBE: 100, VU_SMOOTH: 0.85, VU_GAIN: 35 };
 
-      currentMime = pickBestAudioMime();
-      mediaRecorder = currentMime
-        ? new MediaRecorder(stream, { mimeType: currentMime })
-        : new MediaRecorder(stream);
-
-      audioChunks = [];
-      mediaRecorder.ondataavailable = e => { if (e.data && e.data.size) audioChunks.push(e.data); };
-      mediaRecorder.onstop = handleStop;
-
-      mediaRecorder.start();
-      status.textContent = '🎤 Gravando... (paro automático ao detectar silêncio)';
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-
-      startSilenceDetection(stream);
-    } catch (err) {
-      console.error(err);
-      status.textContent = '❌ Erro ao acessar o microfone (precisa https ou http://localhost).';
-    }
+micBtn.addEventListener('click', ()=> {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    stopRecording('Parando…');
+  } else {
+    startRecording();
   }
+});
 
-  function startSilenceDetection(stream) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    source = audioContext.createMediaStreamSource(stream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
-    source.connect(analyser);
+function pickMime(){
+  const c = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg','audio/mp4;codecs=alac','audio/mp4','audio/wav'];
+  for(const m of c){ if(MediaRecorder.isTypeSupported?.(m)) return m; }
+  return '';
+}
 
-    const buf = new Float32Array(analyser.fftSize);
-    let silenceStart = performance.now();
-
-    monitorInterval = setInterval(() => {
-      analyser.getFloatTimeDomainData(buf);
-
-      // RMS do sinal
-      let sum = 0;
-      for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
-      const rms = Math.sqrt(sum / buf.length);
-
-      // VU smoothing (exponential moving average)
-      rmsSmooth = VU_SMOOTHING * rmsSmooth + (1 - VU_SMOOTHING) * rms;
-      updateVu(rmsSmooth);
-
-      if (rms < SILENCE_THRESHOLD) {
-        if (performance.now() - silenceStart >= SILENCE_DURATION) {
-          stopRecording();
-        }
-      } else {
-        silenceStart = performance.now();
-      }
-    }, PROBE_INTERVAL);
+async function startRecording(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+    mime = pickMime();
+    mediaRecorder = mime ? new MediaRecorder(stream, { mimeType:mime }) : new MediaRecorder(stream);
+    chunks = [];
+    mediaRecorder.ondataavailable = e=> e.data?.size && chunks.push(e.data);
+    mediaRecorder.onstop = onStop;
+    mediaRecorder.start();
+    micBtn.classList.add('rec');
+    setStatus('🎤 Gravando… (para automático ao ficar em silêncio)');
+    startSilenceDetection(stream);
+  }catch(err){
+    console.error(err);
+    setStatus('❌ Erro ao acessar microfone.');
   }
+}
 
-  function updateVu(rms) {
-    // ganho pra “espalhar” melhor (rms nativo é muito baixo)
-    const VU_GAIN = 35; // mantenha igual ao usado no marker
-    const pct = Math.max(0, Math.min(100, rms * 100 * VU_GAIN));
+function startSilenceDetection(stream){
+  audioContext = new (window.AudioContext||window.webkitAudioContext)();
+  const src = audioContext.createMediaStreamSource(stream);
+  analyser = audioContext.createAnalyser(); analyser.fftSize = 2048;
+  src.connect(analyser);
+  const buf = new Float32Array(analyser.fftSize);
+  let since = performance.now();
+
+  monitorInterval = setInterval(()=>{
+    analyser.getFloatTimeDomainData(buf);
+    let sum=0; for(let i=0;i<buf.length;i++) sum += buf[i]*buf[i];
+    const rms = Math.sqrt(sum/buf.length);
+
+    // VU
+    rmsSmooth = SILENCE.VU_SMOOTH * rmsSmooth + (1-SILENCE.VU_SMOOTH)*rms;
+    const pct = Math.max(0, Math.min(100, rmsSmooth*100*SILENCE.VU_GAIN));
     vuFill.style.width = pct + '%';
-    vuValue.textContent = Math.round(pct) + '%';
-  }
 
-  function stopSilenceDetection() {
-    if (monitorInterval) { clearInterval(monitorInterval); monitorInterval = null; }
-    if (audioContext) { audioContext.close().catch(()=>{}); audioContext = null; }
-    analyser = null; source = null; rmsSmooth = 0;
-    updateVu(0);
-  }
-
-  function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      status.textContent = '🛑 Silêncio detectado. Parando gravação...';
-      mediaRecorder.stop();
-      stopSilenceDetection();
-      // opcional: liberar o microfone
-      // mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    if(rms < SILENCE.TH){
+      if(performance.now()-since >= SILENCE.DUR) stopRecording('🛑 Silêncio detectado. Parando…');
+    }else{
+      since = performance.now();
     }
+  }, SILENCE.PROBE);
+}
+
+function stopRecording(msg='Parando…'){
+  try{
+    if(mediaRecorder?.state==='recording'){ mediaRecorder.stop(); }
+    mediaRecorder?.stream?.getTracks().forEach(t=> t.stop());
+  }catch{}
+  micBtn.classList.remove('rec');
+  setStatus(msg);
+  clearInterval(monitorInterval); monitorInterval=null;
+  try{ audioContext?.close(); }catch{}
+  analyser=null; vuFill.style.width='0%'; rmsSmooth=0;
+}
+
+async function onStop(){
+  const blob = new Blob(chunks, { type: mime || 'audio/webm' });
+  const ext = blob.type.includes('ogg')?'ogg':blob.type.includes('webm')?'webm':blob.type.includes('mp4')?'m4a':'wav';
+  const form = new FormData(); form.append('file', blob, 'gravacao.'+ext);
+
+  addMsg('🎙️ [áudio enviado]', 'me');
+  pushMsgToThread(currentThreadId, { role:'user', text:'[áudio]' });
+
+  setStatus('⏳ Transcrevendo…');
+  try{
+    const res = await fetch('/transcrever', { method:'POST', body: form });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const text = data.transcricao || '(sem texto)';
+    addMsg(text, 'bot');
+    pushMsgToThread(currentThreadId, { role:'assistant', text });
+    setStatus('Pronto.');
+  }catch(err){
+    console.error(err);
+    addMsg('❌ Erro ao transcrever: '+err.message, 'bot');
+    setStatus('Erro.');
   }
-
-  async function handleStop() {
-    const blob = new Blob(audioChunks, { type: currentMime || mediaRecorder.mimeType || 'audio/webm' });
-    const ext = blob.type.includes('ogg') ? 'ogg'
-             : blob.type.includes('webm') ? 'webm'
-             : blob.type.includes('mp4') ? 'm4a'
-             : 'wav';
-    const formData = new FormData();
-    formData.append('file', blob, `gravacao.${ext}`);
-
-    status.textContent = '⏳ Enviando áudio para o servidor...';
-    try {
-      const response = await fetch('/transcrever', { method: 'POST', body: formData });
-      if (!response.ok) throw new Error(`Erro do servidor: ${response.status}`);
-      const data = await response.json();
-      transcricao.textContent = data.transcricao || 'Nenhuma transcrição retornada.';
-      status.textContent = '✅ Transcrição concluída!';
-    } catch (err) {
-      console.error(err);
-      status.textContent = `❌ Erro: ${err.message}`;
-    } finally {
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    }
-  }
-
-  startBtn.addEventListener('click', startRecording);
-  stopBtn.addEventListener('click', stopRecording);
+}
 </script>
 </body>
 </html>

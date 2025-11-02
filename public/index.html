@@ -5,67 +5,154 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>LearnAI</title>
 <style>
-  :root{
-    --bg:#0b0b0d; --panel:#111114; --muted:#9aa0a6; --text:#e8eaed;
-    --chip:#1a1b1f; --chipText:#e8eaed; --primary:#6d6bf9; --accent:#22c55e;
-    --danger:#ef4444; --border:#24252a;
+  :root {
+    --bg: #0b0b0d;
+    --panel: #111114;
+    --muted: #9aa0a6;
+    --text: #e8eaed;
+    --chip: #1a1b1f;
+    --chipText: #e8eaed;
+    --primary: #6d6bf9;
+    --accent: #22c55e;
+    --danger: #ef4444;
+    --border: #24252a;
+    --positive: #22c55e;
+    --warning: #fbbf24;
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
-  .app{display:grid;grid-template-columns:280px 1fr;min-height:100dvh}
-  /* sidebar */
-  .sidebar{background:#0f1013;border-right:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:12px}
-  .brand{display:flex;align-items:center;gap:10px}
-  .hamb{display:none}
-  .brand .logo{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#7c3aed,#22d3ee);display:inline-block}
-  .brand strong{font-weight:600}
-  .upgrade{align-self:center;background:#2a2378;color:#c7c5ff;border:0;padding:8px 14px;border-radius:999px}
-  .hist-title{opacity:.8;margin:8px 0 4px 2px;font-size:.9rem}
-  .hist{overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px}
-  .hist button{width:100%;text-align:left;background:transparent;border:1px solid var(--border);color:var(--text);
-    padding:10px;border-radius:10px;opacity:.9;cursor:pointer}
-  .hist button:hover{background:#15161a}
-  .hist .empty{color:var(--muted);font-size:.9rem;padding:10px}
-  /* main */
-  .main{display:grid;grid-template-rows:auto 1fr auto;min-height:100dvh}
-  .topbar{display:flex;align-items:center;gap:8px;justify-content:center;padding:10px;position:sticky;top:0;background:linear-gradient(#0b0b0de6,#0b0b0de6)}
-  .topbar .upgrade{background:#2a2378}
-  .chat{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
-  .msg{max-width:720px;margin:0 auto;border:1px solid var(--border);background:var(--panel);border-radius:16px;padding:14px 16px;line-height:1.45}
-  .msg.me{border-color:#2c2e33;background:#14151a}
-  .chips{position:fixed;left:0;right:0;bottom:86px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;padding:0 16px}
-  .chip{background:var(--chip);color:var(--chipText);border:1px solid var(--border);border-radius:16px;padding:12px 14px;min-width:180px;max-width:300px}
-  .chip b{display:block;margin-bottom:6px}
-  /* composer */
-  .composer-wrap{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,#0b0b0d 40% 100%),#0b0b0d;padding:10px 12px}
-  .composer{max-width:920px;margin:0 auto;display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center}
-  .btn{height:48px;min-width:48px;border-radius:14px;border:1px solid var(--border);background:#14151a;color:var(--text);display:inline-grid;place-items:center;cursor:pointer}
-  .btn:hover{background:#17181d}
-  .plus{font-size:24px}
-  .input{height:48px;border-radius:14px;border:1px solid var(--border);background:#14151a;color:var(--text);padding:0 14px;width:100%}
-  .send{min-width:48px}
-  .mic{position:relative;overflow:hidden}
-  .mic.rec{outline:2px solid var(--accent);box-shadow:0 0 0 4px #22c55e1f}
-  .vu{position:absolute;inset:0;border-radius:14px;pointer-events:none}
-  .vu .fill{position:absolute;left:0;bottom:0;height:100%;width:0%;background:linear-gradient(90deg,#60a5fa,#22c55e);opacity:.25}
-  .status{max-width:920px;margin:6px auto 0;color:var(--muted);font-size:.9rem;padding:0 4px}
-  /* mobile */
-  @media (max-width:900px){
-    .app{grid-template-columns:1fr}
-    .sidebar{position:fixed;inset:0 30% 0 0;z-index:30;transform:translateX(-105%);transition:transform .2s ease}
-    .sidebar.open{transform:translateX(0)}
-    .hamb{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:10px;border:1px solid var(--border);background:#14151a;cursor:pointer}
-    .topbar{justify-content:space-between;padding:10px 12px}
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px "Inter", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial;
+  }
+  button, select, textarea { font: inherit; }
+  a { color: inherit; }
+  .app { display: grid; grid-template-columns: 290px 1fr; min-height: 100dvh; }
+
+  /* Sidebar */
+  .sidebar {
+    background: #0f1013;
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .logo { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg,#7c3aed,#22d3ee); display: inline-block; }
+  .brand strong { font-weight: 600; font-size: 1.1rem; }
+  .new-thread { border: 1px dashed var(--border); background: transparent; color: var(--text); padding: 10px 14px; border-radius: 12px; cursor: pointer; transition: background .2s; text-align: left; }
+  .new-thread:hover { background: #15161a; }
+  .progress-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: grid; gap: 8px; }
+  .progress-card h3 { margin: 0; font-size: 1rem; }
+  .progress-card ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+  .progress-card li { font-size: .9rem; color: var(--muted); }
+  .hist-title { opacity: .85; font-size: .9rem; }
+  .hist { overflow: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .hist button { width: 100%; text-align: left; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: border .2s, background .2s; }
+  .hist button:hover { background: #15161a; }
+  .hist button.active { border-color: var(--primary); }
+  .hist button .meta { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); }
+  .hist button .meta span { display: flex; align-items: center; gap: 4px; }
+  .hist button .title { display: flex; justify-content: space-between; gap: 12px; font-weight: 500; }
+  .hist .empty { color: var(--muted); font-size: .9rem; padding: 10px; }
+
+  /* Main */
+  .main { display: grid; grid-template-rows: auto 1fr auto; min-height: 100dvh; position: relative; }
+  .topbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; position: sticky; top: 0; background: linear-gradient(#0b0b0de6,#0b0b0de6); border-bottom: 1px solid var(--border); z-index: 10; }
+  .hamb { display: none; }
+  .hamb, .pill, .btn { border-radius: 12px; border: 1px solid var(--border); background: #14151a; color: var(--text); cursor: pointer; transition: background .2s, border .2s; }
+  .hamb { width: 42px; height: 42px; display: inline-grid; place-items: center; }
+  .pill { padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; }
+  .pill[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  .settings { display: flex; gap: 12px; align-items: center; }
+  .settings label { font-size: .85rem; color: var(--muted); display: grid; gap: 4px; }
+  .settings select { border-radius: 10px; border: 1px solid var(--border); background: #14151a; color: var(--text); padding: 8px 10px; }
+  .session-meta { display: flex; gap: 8px; align-items: center; flex: 1; }
+  .session-meta span { font-weight: 500; }
+
+  .chat { padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow: auto; scroll-behavior: smooth; }
+  .chat:focus { outline: none; }
+  .msg { max-width: 760px; margin: 0 auto; border: 1px solid var(--border); background: var(--panel); border-radius: 18px; padding: 16px 18px; line-height: 1.5; display: grid; gap: 12px; position: relative; }
+  .msg.me { border-color: #2c2e33; background: #14151a; }
+  .msg .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .msg .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .msg .actions button { border-radius: 10px; border: 1px solid var(--border); background: #1b1c21; color: var(--text); padding: 6px 10px; cursor: pointer; font-size: .85rem; }
+  .msg .actions button.active { border-color: var(--accent); color: var(--accent); }
+  .msg .translation { background: rgba(109,107,249,.08); border-radius: 12px; padding: 10px 12px; }
+  .msg details { background: #15161a; border-radius: 12px; padding: 10px 12px; }
+  .msg details summary { cursor: pointer; font-weight: 500; }
+  .msg ul { margin: 8px 0 0 16px; }
+  .msg ul li { margin-bottom: 4px; }
+  .msg .tag { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+  .msg .tag .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .chips { position: sticky; bottom: 120px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding: 8px 18px; opacity: 1; transition: opacity .2s, transform .2s; }
+  .chips.hidden { opacity: 0; pointer-events: none; transform: translateY(10px); }
+  .chip { background: var(--chip); color: var(--chipText); border: 1px solid var(--border); border-radius: 16px; padding: 12px 14px; min-width: 180px; max-width: 320px; display: grid; gap: 4px; cursor: pointer; }
+  .chip strong { font-size: .95rem; }
+  .chip span { font-size: .85rem; color: var(--muted); }
+
+  .composer-wrap { position: sticky; bottom: 0; background: linear-gradient(180deg, transparent, #0b0b0d 40% 100%), #0b0b0d; padding: 12px 16px; border-top: 1px solid var(--border); }
+  .composer { max-width: 920px; margin: 0 auto; display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; }
+  .btn { height: 48px; min-width: 48px; display: inline-grid; place-items: center; padding: 0 14px; }
+  .btn:hover, .pill:hover, .hamb:hover { background: #17181d; }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.ghost { background: transparent; }
+  .input { height: 48px; border-radius: 14px; border: 1px solid var(--border); background: #14151a; color: var(--text); padding: 12px 14px; width: 100%; resize: none; line-height: 1.4; }
+  .mic { position: relative; overflow: hidden; }
+  .mic.rec { outline: 2px solid var(--accent); box-shadow: 0 0 0 4px #22c55e1f; }
+  .vu { position: absolute; inset: 0; border-radius: 14px; pointer-events: none; }
+  .vu .fill { position: absolute; left: 0; bottom: 0; height: 100%; width: 0%; background: linear-gradient(90deg,#60a5fa,#22c55e); opacity: .25; transition: width .1s linear; }
+  .status { max-width: 920px; margin: 6px auto 0; color: var(--muted); font-size: .9rem; padding: 0 4px; }
+
+  /* Audio preview modal */
+  .audio-preview { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6,6,8,.82); backdrop-filter: blur(6px); z-index: 50; }
+  .audio-preview.hidden { display: none; }
+  .audio-card { width: min(560px, calc(100% - 40px)); background: #121217; border: 1px solid var(--border); border-radius: 18px; padding: 24px; display: grid; gap: 14px; }
+  .audio-card h2 { margin: 0; font-size: 1.3rem; }
+  .audio-card textarea { border-radius: 12px; border: 1px solid var(--border); background: #0f1014; color: var(--text); padding: 12px; resize: vertical; min-height: 140px; }
+  .audio-meta { font-size: .85rem; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .audio-actions { display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+
+  /* Mobile */
+  @media (max-width: 980px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { position: fixed; inset: 0 30% 0 0; z-index: 40; transform: translateX(-105%); transition: transform .2s ease; max-width: 320px; }
+    .sidebar.open { transform: translateX(0); box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+    .hamb { display: inline-grid; }
+    .session-meta { justify-content: center; }
+    .settings { width: 100%; justify-content: space-between; }
+    .settings label { flex: 1; }
+    .composer { grid-template-columns: auto 1fr auto; }
+    .composer .btn.plus { display: none; }
+  }
+
+  @media (max-width: 640px) {
+    .settings { flex-direction: column; align-items: stretch; }
+    .settings label { width: 100%; }
+    .chips { bottom: 140px; }
+    .msg { padding: 14px; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- SIDEBAR / HISTÓRICO -->
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <span class="logo"></span>
+      <span class="logo" aria-hidden="true"></span>
       <strong>LearnAI</strong>
+    </div>
+    <button class="new-thread" id="newThreadBtn">➕ Nova conversa</button>
+    <div class="progress-card" id="progressCard">
+      <h3>Seu progresso</h3>
+      <ul>
+        <li><strong id="progressSessions">0</strong> conversas iniciadas</li>
+        <li><strong id="progressMessages">0</strong> mensagens trocadas</li>
+        <li><strong id="progressWords">0</strong> palavras exploradas</li>
+        <li><strong id="progressStreak">0</strong> dias ativos</li>
+      </ul>
     </div>
     <div class="hist-title">Histórico</div>
     <div class="hist" id="historyList">
@@ -73,36 +160,97 @@
     </div>
   </aside>
 
-  <!-- MAIN -->
   <main class="main">
     <div class="topbar">
-      <button class="hamb" id="hamb">☰</button>
-      <span style="width:42px"></span>
+      <button class="hamb" id="hamb" aria-label="Abrir histórico">☰</button>
+      <div class="session-meta">
+        <button class="pill" id="renameBtn" aria-label="Renomear conversa"><span id="sessionTitle">Nova conversa</span></button>
+        <button class="pill" id="favoriteBtn" aria-label="Favoritar conversa" aria-pressed="false">☆ Favorita</button>
+      </div>
+      <div class="settings" role="group" aria-label="Preferências de estudo">
+        <label>Objetivo
+          <select id="goalSelect">
+            <option value="conversacao_geral">Conversação geral</option>
+            <option value="viagens">Viagens</option>
+            <option value="entrevistas">Entrevistas de emprego</option>
+            <option value="exames">Preparação para exames</option>
+            <option value="negocios">Negócios</option>
+          </select>
+        </label>
+        <label>Nível
+          <select id="levelSelect">
+            <option value="iniciante">Iniciante</option>
+            <option value="intermediario">Intermediário</option>
+            <option value="avancado">Avançado</option>
+          </select>
+        </label>
+      </div>
     </div>
 
-    <!-- CHAT MESSAGES -->
-    <section class="chat" id="chat"></section>
+    <section class="chat" id="chat" role="log" aria-live="polite" aria-label="Mensagens da conversa"></section>
 
-    <!-- SUGESTÕES -->
+    <section class="chips" id="chips" aria-label="Sugestões rápidas"></section>
 
-    <!-- COMPOSER -->
     <div class="composer-wrap">
       <div class="composer">
-        <button class="btn plus" id="addBtn">+</button>
-        <input class="input" id="textInput" placeholder="Pergunte alguma coisa" />
+        <button class="btn plus" id="newThreadBtnMobile" title="Nova conversa">＋</button>
+        <textarea class="input" id="textInput" placeholder="Peça uma dica, explique uma situação ou pergunte sobre gramática" rows="1" aria-label="Escreva sua mensagem"></textarea>
         <button class="btn mic" id="micBtn" aria-label="Gravar áudio">
           🎙️
           <div class="vu"><div class="fill" id="vuFill"></div></div>
         </button>
-        <button class="btn send" id="sendBtn" aria-label="Enviar">➤</button>
+        <button class="btn send" id="sendBtn" aria-label="Enviar mensagem">➤</button>
       </div>
-      <div class="status" id="status">Aguardando…</div>
+      <div class="status" id="status" role="status" aria-live="polite">Pronto para praticar! Escolha um objetivo ou use as sugestões abaixo.</div>
     </div>
   </main>
 </div>
 
+<div class="audio-preview hidden" id="audioPreview" role="dialog" aria-modal="true" aria-labelledby="audioPreviewTitle">
+  <div class="audio-card">
+    <h2 id="audioPreviewTitle">Revise sua fala</h2>
+    <p>Confira a transcrição antes de enviar para o coach.</p>
+    <textarea id="audioTranscript" aria-label="Transcrição da sua fala"></textarea>
+    <div class="audio-meta" id="audioMeta"></div>
+    <div class="audio-actions">
+      <button class="btn ghost" id="audioDiscardBtn">Descartar</button>
+      <button class="btn" id="audioRetryBtn">Refazer</button>
+      <button class="btn primary" id="audioSendBtn">Enviar para feedback</button>
+    </div>
+  </div>
+</div>
+
 <script>
-/** -------------------- State / DOM -------------------- **/
+const DEFAULT_SETTINGS = { goal: 'conversacao_geral', level: 'intermediario' };
+const GOAL_SUGGESTIONS = {
+  conversacao_geral: [
+    { title: 'Quebre o gelo', body: 'Start a short conversation about your day.', level: 'iniciante' },
+    { title: 'Peça opinião', body: 'Ask for advice about choosing a new hobby.', level: 'intermediario' },
+    { title: 'Compartilhe um sonho', body: 'Describe a place you would love to visit someday.', level: 'avancado' }
+  ],
+  viagens: [
+    { title: 'Check-in no hotel', body: 'Practice checking into a hotel late at night.', level: 'iniciante' },
+    { title: 'Restaurante lotado', body: 'Explain a food allergy to a waiter politely.', level: 'intermediario' },
+    { title: 'Problema no aeroporto', body: 'Negotiate rebooking a cancelled flight.', level: 'avancado' }
+  ],
+  entrevistas: [
+    { title: 'Apresente-se', body: 'Pitch your experience for a junior position.', level: 'iniciante' },
+    { title: 'Pergunta difícil', body: 'Answer a question about handling conflict at work.', level: 'intermediario' },
+    { title: 'Negocie salário', body: 'Discuss salary expectations confidently.', level: 'avancado' }
+  ],
+  exames: [
+    { title: 'Reading practice', body: 'Ask for a short TOEFL-style reading passage and questions.', level: 'intermediario' },
+    { title: 'Speaking task', body: 'Request an IELTS speaking task about technology.', level: 'avancado' },
+    { title: 'Vocabulário chave', body: 'Review useful linking words for essays.', level: 'iniciante' }
+  ],
+  negocios: [
+    { title: 'Reunião curta', body: 'Plan the agenda for a weekly stand-up.', level: 'iniciante' },
+    { title: 'Feedback diplomático', body: 'Give constructive feedback to a teammate.', level: 'intermediario' },
+    { title: 'Pitch estratégico', body: 'Prepare a persuasive pitch for an investor.', level: 'avancado' }
+  ]
+};
+const WELCOME_MESSAGE = `Olá! Eu sou o seu coach pessoal de inglês. Escolha um objetivo na parte superior, explore as sugestões abaixo ou envie uma pergunta. Vou responder com explicações, tradução e próximos passos para o seu estudo.`;
+
 const chatEl = document.getElementById('chat');
 const textInput = document.getElementById('textInput');
 const sendBtn = document.getElementById('sendBtn');
@@ -113,207 +261,616 @@ const chipsEl = document.getElementById('chips');
 const historyList = document.getElementById('historyList');
 const sidebar = document.getElementById('sidebar');
 const hamb = document.getElementById('hamb');
+const newThreadBtn = document.getElementById('newThreadBtn');
+const newThreadBtnMobile = document.getElementById('newThreadBtnMobile');
+const sessionTitleEl = document.getElementById('sessionTitle');
+const renameBtn = document.getElementById('renameBtn');
+const favoriteBtn = document.getElementById('favoriteBtn');
+const goalSelect = document.getElementById('goalSelect');
+const levelSelect = document.getElementById('levelSelect');
+const progressSessionsEl = document.getElementById('progressSessions');
+const progressMessagesEl = document.getElementById('progressMessages');
+const progressWordsEl = document.getElementById('progressWords');
+const progressStreakEl = document.getElementById('progressStreak');
+const audioPreview = document.getElementById('audioPreview');
+const audioTranscriptEl = document.getElementById('audioTranscript');
+const audioMetaEl = document.getElementById('audioMeta');
+const audioSendBtn = document.getElementById('audioSendBtn');
+const audioRetryBtn = document.getElementById('audioRetryBtn');
+const audioDiscardBtn = document.getElementById('audioDiscardBtn');
 
-let mediaRecorder, chunks = [], mime = '';
-let audioContext, analyser, monitorInterval, rmsSmooth = 0;
-let currentThreadId = loadLastThreadId();
+let mediaRecorder, chunks = [], mime = '', audioContext, analyser, monitorInterval, rmsSmooth = 0, recordStartedAt = null, countdownTimer = null;
+let currentThreadId = null;
 
-/** -------------------- UI helpers -------------------- **/
-function addMsg(text, who='me'){
-  const div = document.createElement('div');
-  div.className = 'msg ' + (who === 'me' ? 'me' : 'bot');
-  div.textContent = text;
-  chatEl.appendChild(div);
-  chatEl.scrollTop = chatEl.scrollHeight;
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem('learnai-settings') || '{}'); } catch { return {}; }
 }
-function setStatus(msg){ statusEl.textContent = msg; }
-function fmtTitle(s){ return (s || 'Sem título').slice(0, 40); }
+function saveSettings(settings) { localStorage.setItem('learnai-settings', JSON.stringify(settings)); }
+function loadThreads() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('learnai-threads') || '{}');
+    Object.values(stored).forEach(t => {
+      t.messages = Array.isArray(t.messages) ? t.messages : [];
+      t.messages.forEach(m => {
+        if (!m.id) m.id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
+      });
+      if (!t.createdAt) t.createdAt = Date.now();
+    });
+    return stored;
+  } catch {
+    return {};
+  }
+}
+function saveThreads(obj) { localStorage.setItem('learnai-threads', JSON.stringify(obj)); }
+function loadLastThreadId() { return localStorage.getItem('learnai-last-thread') || null; }
+function setLastThreadId(id) { localStorage.setItem('learnai-last-thread', id); }
+function loadFeedbackLog() {
+  try { return JSON.parse(localStorage.getItem('learnai-feedback') || '[]'); } catch { return []; }
+}
+function saveFeedbackLog(arr) { localStorage.setItem('learnai-feedback', JSON.stringify(arr)); }
 
-/** -------------------- Histórico (localStorage) -------------------- **/
-function loadThreads(){ return JSON.parse(localStorage.getItem('threads') || '{}'); }
-function saveThreads(obj){ localStorage.setItem('threads', JSON.stringify(obj)); }
-function loadLastThreadId(){ return localStorage.getItem('lastThreadId') || null; }
-function setLastThreadId(id){ localStorage.setItem('lastThreadId', id); }
-function newThread(title){
-  const id = Date.now().toString(36);
-  const threads = loadThreads();
-  threads[id] = { id, title, messages: [] };
+let settings = { ...DEFAULT_SETTINGS, ...loadSettings() };
+let threads = loadThreads();
+let feedbackLog = loadFeedbackLog();
+
+function setStatus(msg) {
+  statusEl.textContent = msg;
+}
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(160, el.scrollHeight) + 'px';
+}
+
+function escapeHTML(str = '') {
+  return str.replace(/[&<>"]+/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[s]));
+}
+function formatText(str = '') {
+  return escapeHTML(str).replace(/\n/g, '<br />');
+}
+function countWords(str = '') {
+  return (str.trim().match(/\b\w+\b/g) || []).length;
+}
+
+function newId() { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`; }
+
+function ensureCurrentThread() {
+  if (currentThreadId && threads[currentThreadId]) return currentThreadId;
+  const id = newId();
+  threads[id] = { id, title: 'Nova conversa', messages: [], createdAt: Date.now(), favorite: false };
   saveThreads(threads); setLastThreadId(id);
-  renderHistory(); return id;
+  currentThreadId = id;
+  return id;
 }
-function pushMsgToThread(id, msg){
-  const threads = loadThreads();
-  if(!threads[id]) return;
-  threads[id].messages.push(msg);
-  if(!threads[id].title && msg.role==='user') threads[id].title = fmtTitle(msg.text);
-  saveThreads(threads); renderHistory();
+
+function renderProgress() {
+  const all = Object.values(threads);
+  const sessions = all.length;
+  let messages = 0;
+  let words = 0;
+  const days = new Set();
+  all.forEach(t => {
+    messages += t.messages.length;
+    t.messages.filter(m => m.role === 'assistant').forEach(m => {
+      words += countWords(m.text || '');
+    });
+    if (t.createdAt) {
+      days.add(new Date(t.createdAt).toDateString());
+    }
+  });
+  progressSessionsEl.textContent = sessions;
+  progressMessagesEl.textContent = messages;
+  progressWordsEl.textContent = words;
+  progressStreakEl.textContent = days.size;
 }
-function renderHistory(){
-  const threads = loadThreads();
+
+function renderChips() {
+  chipsEl.innerHTML = '';
+  const data = GOAL_SUGGESTIONS[settings.goal] || [];
+  data.forEach(item => {
+    if (item.level !== settings.level && settings.level !== 'intermediario') {
+      if (settings.level === 'iniciante' && item.level === 'avancado') return;
+      if (settings.level === 'avancado' && item.level === 'iniciante') return;
+    }
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.type = 'button';
+    chip.innerHTML = `<strong>${escapeHTML(item.title)}</strong><span>${escapeHTML(item.body)}</span>`;
+    chip.addEventListener('click', () => {
+      textInput.value = item.body;
+      autoGrow(textInput);
+      textInput.focus();
+    });
+    chipsEl.appendChild(chip);
+  });
+  if (!chipsEl.children.length) {
+    const empty = document.createElement('div');
+    empty.className = 'chip';
+    empty.innerHTML = '<strong>Sem sugestões</strong><span>Altere o objetivo para ver novas ideias.</span>';
+    chipsEl.appendChild(empty);
+  }
+}
+
+function chipsVisible(visible) {
+  chipsEl.classList.toggle('hidden', !visible);
+}
+
+function renderHistory() {
   historyList.innerHTML = '';
-  const ids = Object.keys(threads).sort((a,b)=> (threads[b].id-threads[a].id));
-  if(!ids.length){ historyList.innerHTML = '<div class="empty">Sem conversas ainda.</div>'; return; }
-  ids.forEach(id=>{
-    const b = document.createElement('button');
-    b.textContent = fmtTitle(threads[id].title || 'Sem título');
-    b.onclick = ()=> { openThread(id); };
-    historyList.appendChild(b);
+  const ids = Object.keys(threads).sort((a, b) => (threads[b].createdAt || 0) - (threads[a].createdAt || 0));
+  if (!ids.length) {
+    historyList.innerHTML = '<div class="empty">Sem conversas ainda.</div>';
+    return;
+  }
+  ids.forEach(id => {
+    const t = threads[id];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = id === currentThreadId ? 'active' : '';
+    btn.innerHTML = `
+      <div class="title">
+        <span>${escapeHTML(t.title || 'Sem título')}</span>
+        <span>${t.favorite ? '★' : ''}</span>
+      </div>
+      <div class="meta">
+        <span>Mensagens: ${t.messages.length}</span>
+        <span>${t.messages.length ? new Date(t.createdAt).toLocaleDateString() : ''}</span>
+      </div>`;
+    btn.addEventListener('click', () => openThread(id));
+    historyList.appendChild(btn);
   });
 }
-function openThread(id){
-  const threads = loadThreads();
-  const t = threads[id]; if(!t) return;
-  currentThreadId = id; setLastThreadId(id);
-  chatEl.innerHTML=''; t.messages.forEach(m=> addMsg(m.text, m.role==='user'?'me':'bot'));
-  setStatus('Conversando…');
-  if (window.innerWidth < 900) sidebar.classList.remove('open');
+
+function renderThreadMessages(thread) {
+  chatEl.innerHTML = '';
+  thread.messages.forEach(msg => {
+    renderMessage(msg, false);
+  });
+  chatEl.scrollTop = chatEl.scrollHeight;
+  updateSessionMeta();
+  chipsVisible(thread.messages.length === 0);
+  if (thread.messages.length === 0) {
+    renderWelcome();
+  }
 }
-renderHistory();
-if(!currentThreadId){ currentThreadId = newThread(''); }
-else { openThread(currentThreadId); }
 
-/** -------------------- Chips -------------------- **/
-chipsEl.addEventListener('click', (e)=>{
-  const chip = e.target.closest('.chip'); if(!chip) return;
-  const text = chip.querySelector('b').textContent + ' ' + chip.querySelector('div').textContent;
-  textInput.value = text;
-  textInput.focus();
-});
+function renderWelcome() {
+  const welcome = {
+    id: 'welcome',
+    role: 'assistant',
+    text: WELCOME_MESSAGE,
+    meta: {
+      translation: 'Esta é uma tradução automática caso prefira ler em português.',
+      grammarNotes: 'Aproveite para praticar e responda em inglês, mesmo que com frases curtas.',
+      vocabulary: [
+        { term: 'coach', meaning: 'treinador(a), mentor(a)', example: 'This app acts as your personal coach.' }
+      ],
+      followUpQuestion: 'What do you want to practice today?',
+      extraSuggestions: ['Escolha um objetivo na barra superior.', 'Teste uma das sugestões rápidas.'],
+      culturalTip: 'Pequenas rotinas diárias constroem fluência!'
+    }
+  };
+  renderMessage(welcome, false, true);
+}
 
-/** -------------------- Sidebar mobile -------------------- **/
-hamb?.addEventListener('click', ()=> sidebar.classList.toggle('open'));
+function renderMessage(message, save = true, temporary = false) {
+  if (message.role === 'assistant') {
+    renderAssistantMessage(message, save, temporary);
+  } else {
+    renderUserMessage(message, save);
+  }
+}
 
-/** -------------------- Text Send -------------------- **/
-sendBtn.addEventListener('click', sendText);
-textInput.addEventListener('keydown', (e)=> {
-  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendText(); }
-});
+function renderUserMessage(message, save = true) {
+  const div = document.createElement('div');
+  div.className = 'msg me';
+  div.setAttribute('data-id', message.id);
+  div.innerHTML = `<div>${formatText(message.text)}</div>`;
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  if (save) {
+    pushMsgToThread(currentThreadId, message);
+  }
+}
 
-async function sendText(){
-  const text = textInput.value.trim();
-  if(!text) return;
-  addMsg(text, 'me');
-  pushMsgToThread(currentThreadId, { role:'user', text });
-  textInput.value = '';
-  chipsEl.style.display = 'none';
-  setStatus('✉️ Enviando texto…');
+function renderAssistantMessage(message, save = true, temporary = false) {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  if (temporary) div.setAttribute('data-temporary', 'true');
+  div.setAttribute('data-id', message.id || 'temp');
+  const meta = message.meta || {};
+  const confidenceColor = meta.confidence === 'baixa' ? 'var(--danger)' : meta.confidence === 'media' ? 'var(--warning)' : 'var(--accent)';
+  const vocabList = Array.isArray(meta.vocabulary) ? meta.vocabulary.map(item => `<li><strong>${escapeHTML(item.term || '')}:</strong> ${escapeHTML(item.meaning || '')}<br><em>${escapeHTML(item.example || '')}</em></li>`).join('') : '';
+  div.innerHTML = `
+    <div class="label">Coach LearnAI</div>
+    <div>${formatText(message.text || meta.reply || '')}</div>
+    ${meta.translation ? `<div class="translation"><strong>Tradução:</strong><br>${formatText(meta.translation)}</div>` : ''}
+    ${meta.grammarNotes ? `<details open><summary>Explicação</summary><p>${formatText(meta.grammarNotes)}</p></details>` : ''}
+    ${vocabList ? `<details><summary>Vocabulário</summary><ul>${vocabList}</ul></details>` : ''}
+    ${meta.followUpQuestion ? `<div><strong>Próxima pergunta:</strong> ${formatText(meta.followUpQuestion)}</div>` : ''}
+    ${Array.isArray(meta.extraSuggestions) && meta.extraSuggestions.length ? `<details><summary>Continue praticando</summary><ul>${meta.extraSuggestions.map(s => `<li>${formatText(s)}</li>`).join('')}</ul></details>` : ''}
+    ${meta.culturalTip ? `<div><span class="tag"><span class="dot" style="background:${confidenceColor}"></span>${escapeHTML(meta.confidence ? `confiança ${meta.confidence}` : 'dica')}</span><br>${formatText(meta.culturalTip)}</div>` : ''}
+    ${temporary ? '' : `<div class="actions" role="group" aria-label="Feedback desta resposta">
+      <button type="button" data-feedback="entendi">👍 Entendi</button>
+      <button type="button" data-feedback="duvidas">🤔 Ainda tenho dúvidas</button>
+    </div>`}
+  `;
 
-  try{
-    // rota opcional do backend; veja snippet abaixo
-    const res = await fetch('/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text }) });
-    if(!res.ok){
-      addMsg('⚠️ Backend /chat não encontrado. Resposta simulada no front.', 'bot');
-      setStatus('Pronto.');
-      return;
+  if (!temporary) {
+    div.querySelectorAll('.actions button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        registerFeedback(message.id, btn.dataset.feedback);
+        btn.classList.add('active');
+        setTimeout(() => btn.classList.remove('active'), 1200);
+      });
+    });
+  }
+
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  if (save && !temporary) {
+    pushMsgToThread(currentThreadId, message);
+  }
+}
+
+function pushMsgToThread(id, msg) {
+  if (!id || !threads[id]) return;
+  const thread = threads[id];
+  const exists = thread.messages.find(m => m.id === msg.id);
+  if (exists) return;
+  thread.messages.push(msg);
+  if (!thread.title && msg.role === 'user') thread.title = msg.text.slice(0, 40) || 'Nova conversa';
+  threads[id] = thread;
+  saveThreads(threads);
+  renderHistory();
+  renderProgress();
+}
+
+function openThread(id) {
+  if (!threads[id]) return;
+  currentThreadId = id;
+  setLastThreadId(id);
+  renderHistory();
+  renderThreadMessages(threads[id]);
+  if (window.innerWidth < 980) sidebar.classList.remove('open');
+}
+
+function updateSessionMeta() {
+  const thread = threads[currentThreadId];
+  if (!thread) return;
+  sessionTitleEl.textContent = thread.title || 'Nova conversa';
+  favoriteBtn.setAttribute('aria-pressed', thread.favorite ? 'true' : 'false');
+  favoriteBtn.textContent = thread.favorite ? '★ Favorita' : '☆ Favorita';
+}
+
+function renameCurrentThread() {
+  const thread = threads[currentThreadId];
+  if (!thread) return;
+  const next = prompt('Novo título para esta conversa:', thread.title || 'Nova conversa');
+  if (next) {
+    thread.title = next.trim();
+    threads[currentThreadId] = thread;
+    saveThreads(threads);
+    updateSessionMeta();
+    renderHistory();
+  }
+}
+
+function toggleFavorite() {
+  const thread = threads[currentThreadId];
+  if (!thread) return;
+  thread.favorite = !thread.favorite;
+  threads[currentThreadId] = thread;
+  saveThreads(threads);
+  updateSessionMeta();
+  renderHistory();
+}
+
+function newThread() {
+  const id = newId();
+  threads[id] = { id, title: 'Nova conversa', messages: [], createdAt: Date.now(), favorite: false };
+  saveThreads(threads);
+  currentThreadId = id;
+  setLastThreadId(id);
+  renderHistory();
+  renderThreadMessages(threads[id]);
+  setStatus('Nova conversa iniciada. Use uma sugestão ou digite sua pergunta.');
+}
+
+function getHistoryForRequest(id) {
+  const thread = threads[id];
+  if (!thread) return [];
+  return thread.messages.slice(-6).map(m => ({ role: m.role, text: m.meta?.reply || m.text }));
+}
+
+function getRecentFeedback() {
+  return feedbackLog.slice(-5);
+}
+
+async function sendText({ textOverride = null, source = 'text' } = {}) {
+  const raw = textOverride !== null ? textOverride : textInput.value;
+  const text = raw.trim();
+  if (!text) return;
+
+  ensureCurrentThread();
+  const message = { id: newId(), role: 'user', text, createdAt: Date.now(), meta: { source } };
+  renderUserMessage(message);
+  chipsVisible(false);
+  if (textOverride === null) {
+    textInput.value = '';
+    autoGrow(textInput);
+  }
+  setStatus('Enviando sua mensagem para o coach…');
+
+  const payload = {
+    text,
+    goal: settings.goal,
+    level: settings.level,
+    history: getHistoryForRequest(currentThreadId),
+    feedbackSignals: getRecentFeedback()
+  };
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const error = new Error(err.message || err.detail || `Servidor respondeu ${res.status}`);
+      error.code = err.code;
+      error.status = res.status;
+      throw error;
     }
     const data = await res.json();
-    const reply = data.reply || '(sem resposta)';
-    addMsg(reply, 'bot');
-    pushMsgToThread(currentThreadId, { role:'assistant', text: reply });
-    setStatus('Pronto.');
-  }catch(err){
+    const assistantMessage = {
+      id: newId(),
+      role: 'assistant',
+      text: data.reply || data.text || '(sem resposta)',
+      createdAt: Date.now(),
+      meta: {
+        reply: data.reply,
+        translation: data.translation,
+        grammarNotes: data.grammarNotes,
+        vocabulary: data.vocabulary,
+        followUpQuestion: data.followUpQuestion,
+        extraSuggestions: data.extraSuggestions,
+        culturalTip: data.culturalTip,
+        confidence: data.confidence,
+        goal: data.goal,
+        level: data.level
+      }
+    };
+    renderAssistantMessage(assistantMessage);
+    setStatus('Pronto. Continue praticando!');
+  } catch (err) {
     console.error(err);
-    addMsg('❌ Erro ao enviar texto: ' + err.message, 'bot');
-    setStatus('Erro.');
+    const isAuthIssue = err?.code === 'invalid_api_key';
+    const translation = isAuthIssue
+      ? 'Configure a variável de ambiente OPENAI_API_KEY com uma chave válida da OpenAI e reinicie o servidor.'
+      : (err?.message || 'Falha inesperada ao falar com o coach.');
+    const suggestions = isAuthIssue
+      ? [
+          'Verifique na plataforma da OpenAI se a chave utilizada ainda está ativa.',
+          'Atualize o arquivo .env com a chave correta e reinicie o backend.'
+        ]
+      : [
+          'Você pode revisar mensagens anteriores enquanto aguarda.',
+          'Copie sua pergunta para não perder o conteúdo.'
+        ];
+    const errorMessage = {
+      id: newId(),
+      role: 'assistant',
+      text: 'Não consegui falar com o coach agora. Verifique sua conexão e tente novamente em instantes.',
+      createdAt: Date.now(),
+      meta: {
+        translation,
+        extraSuggestions: suggestions,
+        culturalTip: 'Mesmo quando a tecnologia falha, pequenos intervalos ajudam a consolidar o aprendizado.',
+        confidence: 'baixa'
+      }
+    };
+    renderAssistantMessage(errorMessage);
+    setStatus('Erro ao enviar. Aguarde um momento e tente outra vez.');
   }
 }
 
-/** -------------------- Captura de áudio (auto-stop) -------------------- **/
-const SILENCE = { TH: 0.01, DUR: 2000, PROBE: 100, VU_SMOOTH: 0.85, VU_GAIN: 35 };
+function registerFeedback(messageId, value) {
+  feedbackLog.push({ id: messageId, value, ts: Date.now() });
+  feedbackLog = feedbackLog.slice(-50);
+  saveFeedbackLog(feedbackLog);
+}
 
-micBtn.addEventListener('click', ()=> {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    stopRecording('Parando…');
-  } else {
-    startRecording();
-  }
-});
-
-function pickMime(){
-  const c = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg','audio/mp4;codecs=alac','audio/mp4','audio/wav'];
-  for(const m of c){ if(MediaRecorder.isTypeSupported?.(m)) return m; }
+function pickMime() {
+  const c = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/mp4;codecs=aac', 'audio/mp4', 'audio/wav'];
+  for (const m of c) { if (MediaRecorder.isTypeSupported?.(m)) return m; }
   return '';
 }
 
-async function startRecording(){
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+async function runCountdown(seconds) {
+  for (let remaining = seconds; remaining > 0; remaining -= 1) {
+    setStatus(`Iniciando gravação em ${remaining}…`);
+    await new Promise(resolve => { countdownTimer = setTimeout(resolve, 900); });
+  }
+  countdownTimer = null;
+}
+
+micBtn.addEventListener('click', async () => {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    stopRecording('Parando gravação…');
+  } else {
+    await startRecording();
+  }
+});
+
+async function startRecording() {
+  try {
+    await runCountdown(3);
+    setStatus('Preparando microfone…');
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     mime = pickMime();
-    mediaRecorder = mime ? new MediaRecorder(stream, { mimeType:mime }) : new MediaRecorder(stream);
+    mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
     chunks = [];
-    mediaRecorder.ondataavailable = e=> e.data?.size && chunks.push(e.data);
+    mediaRecorder.ondataavailable = e => e.data?.size && chunks.push(e.data);
     mediaRecorder.onstop = onStop;
     mediaRecorder.start();
+    recordStartedAt = Date.now();
     micBtn.classList.add('rec');
-    setStatus('🎤 Gravando… (para automático ao ficar em silêncio)');
+    setStatus('🎤 Gravando… fale normalmente, eu paro se ficar em silêncio.');
     startSilenceDetection(stream);
-  }catch(err){
+  } catch (err) {
     console.error(err);
-    setStatus('❌ Erro ao acessar microfone.');
+    setStatus('Não foi possível acessar o microfone. Verifique as permissões.');
   }
 }
 
-function startSilenceDetection(stream){
-  audioContext = new (window.AudioContext||window.webkitAudioContext)();
+function startSilenceDetection(stream) {
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
   const src = audioContext.createMediaStreamSource(stream);
   analyser = audioContext.createAnalyser(); analyser.fftSize = 2048;
   src.connect(analyser);
   const buf = new Float32Array(analyser.fftSize);
   let since = performance.now();
+  const SILENCE = { TH: 0.01, DUR: 2200, PROBE: 120, VU_SMOOTH: 0.85, VU_GAIN: 35 };
 
-  monitorInterval = setInterval(()=>{
+  monitorInterval = setInterval(() => {
     analyser.getFloatTimeDomainData(buf);
-    let sum=0; for(let i=0;i<buf.length;i++) sum += buf[i]*buf[i];
-    const rms = Math.sqrt(sum/buf.length);
-
-    // VU
-    rmsSmooth = SILENCE.VU_SMOOTH * rmsSmooth + (1-SILENCE.VU_SMOOTH)*rms;
-    const pct = Math.max(0, Math.min(100, rmsSmooth*100*SILENCE.VU_GAIN));
+    let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    const rms = Math.sqrt(sum / buf.length);
+    rmsSmooth = SILENCE.VU_SMOOTH * rmsSmooth + (1 - SILENCE.VU_SMOOTH) * rms;
+    const pct = Math.max(0, Math.min(100, rmsSmooth * 100 * SILENCE.VU_GAIN));
     vuFill.style.width = pct + '%';
 
-    if(rms < SILENCE.TH){
-      if(performance.now()-since >= SILENCE.DUR) stopRecording('🛑 Silêncio detectado. Parando…');
-    }else{
+    if (rms < SILENCE.TH) {
+      if (performance.now() - since >= SILENCE.DUR) stopRecording('Silêncio detectado, finalizando…');
+    } else {
       since = performance.now();
     }
   }, SILENCE.PROBE);
 }
 
-function stopRecording(msg='Parando…'){
-  try{
-    if(mediaRecorder?.state==='recording'){ mediaRecorder.stop(); }
-    mediaRecorder?.stream?.getTracks().forEach(t=> t.stop());
-  }catch{}
+function stopRecording(msg = 'Parando…') {
+  try {
+    if (mediaRecorder?.state === 'recording') mediaRecorder.stop();
+    mediaRecorder?.stream?.getTracks().forEach(t => t.stop());
+  } catch {}
   micBtn.classList.remove('rec');
   setStatus(msg);
-  clearInterval(monitorInterval); monitorInterval=null;
-  try{ audioContext?.close(); }catch{}
-  analyser=null; vuFill.style.width='0%'; rmsSmooth=0;
+  clearInterval(monitorInterval); monitorInterval = null;
+  if (countdownTimer) clearTimeout(countdownTimer);
+  try { audioContext?.close(); } catch {}
+  analyser = null; vuFill.style.width = '0%'; rmsSmooth = 0;
 }
 
-async function onStop(){
+async function onStop() {
   const blob = new Blob(chunks, { type: mime || 'audio/webm' });
-  const ext = blob.type.includes('ogg')?'ogg':blob.type.includes('webm')?'webm':blob.type.includes('mp4')?'m4a':'wav';
-  const form = new FormData(); form.append('file', blob, 'gravacao.'+ext);
+  const ext = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('webm') ? 'webm' : blob.type.includes('mp4') ? 'm4a' : 'wav';
+  const form = new FormData(); form.append('file', blob, 'gravacao.' + ext);
 
-  addMsg('🎙️ [áudio enviado]', 'me');
-  pushMsgToThread(currentThreadId, { role:'user', text:'[áudio]' });
-
-  setStatus('⏳ Transcrevendo…');
-  try{
-    const res = await fetch('/transcrever', { method:'POST', body: form });
-    if(!res.ok) throw new Error('HTTP '+res.status);
+  const durationSec = recordStartedAt ? Math.max(1, Math.round((Date.now() - recordStartedAt) / 1000)) : null;
+  setStatus('Transcrevendo seu áudio…');
+  try {
+    const res = await fetch('/transcrever', { method: 'POST', body: form });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const error = new Error(err.message || `Erro ${res.status}`);
+      error.code = err.code;
+      error.status = res.status;
+      throw error;
+    }
     const data = await res.json();
-    const text = data.transcricao || '(sem texto)';
-    addMsg(text, 'bot');
-    pushMsgToThread(currentThreadId, { role:'assistant', text });
-    setStatus('Pronto.');
-  }catch(err){
+    const text = data.transcricao || data.transcript || '';
+    showAudioPreview(text, durationSec);
+    setStatus('Transcrição pronta! Revise antes de enviar.');
+  } catch (err) {
     console.error(err);
-    addMsg('❌ Erro ao transcrever: '+err.message, 'bot');
-    setStatus('Erro.');
+    if (err?.code === 'invalid_api_key') {
+      setStatus('A transcrição falhou porque a chave OPENAI_API_KEY é inválida. Atualize a variável e reinicie o backend.');
+    } else {
+      setStatus('Não consegui transcrever. Tente novamente ou ajuste o ambiente.');
+    }
   }
 }
+
+function showAudioPreview(text, duration) {
+  audioTranscriptEl.value = text;
+  audioMetaEl.textContent = duration ? `Duração aproximada: ${duration}s` : '';
+  audioPreview.classList.remove('hidden');
+  audioTranscriptEl.focus();
+}
+
+function hideAudioPreview() {
+  audioPreview.classList.add('hidden');
+  audioTranscriptEl.value = '';
+  audioMetaEl.textContent = '';
+}
+
+audioSendBtn.addEventListener('click', () => {
+  const text = audioTranscriptEl.value.trim();
+  hideAudioPreview();
+  if (text) {
+    sendText({ textOverride: text, source: 'audio' });
+  } else {
+    setStatus('Transcrição vazia. Grave novamente.');
+  }
+});
+
+audioRetryBtn.addEventListener('click', async () => {
+  hideAudioPreview();
+  await startRecording();
+});
+
+audioDiscardBtn.addEventListener('click', () => {
+  hideAudioPreview();
+  setStatus('Transcrição descartada. Grave outra vez quando quiser.');
+});
+
+sendBtn.addEventListener('click', () => sendText());
+textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendText();
+  }
+});
+textInput.addEventListener('input', () => autoGrow(textInput));
+textInput.addEventListener('focus', () => chipsVisible(false));
+textInput.addEventListener('blur', () => {
+  const thread = threads[currentThreadId];
+  if (thread && thread.messages.length === 0) chipsVisible(true);
+});
+
+renameBtn.addEventListener('click', renameCurrentThread);
+favoriteBtn.addEventListener('click', toggleFavorite);
+newThreadBtn.addEventListener('click', newThread);
+newThreadBtnMobile.addEventListener('click', newThread);
+
+hamb?.addEventListener('click', () => sidebar.classList.toggle('open'));
+
+goalSelect.addEventListener('change', () => {
+  settings.goal = goalSelect.value;
+  saveSettings(settings);
+  renderChips();
+});
+levelSelect.addEventListener('change', () => {
+  settings.level = levelSelect.value;
+  saveSettings(settings);
+  renderChips();
+});
+
+function bootstrap() {
+  goalSelect.value = settings.goal;
+  levelSelect.value = settings.level;
+  currentThreadId = loadLastThreadId();
+  ensureCurrentThread();
+  renderHistory();
+  openThread(currentThreadId);
+  renderProgress();
+  renderChips();
+  autoGrow(textInput);
+}
+
+bootstrap();
 </script>
 </body>
 </html>

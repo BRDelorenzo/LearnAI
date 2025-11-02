@@ -10,6 +10,26 @@ import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { fileURLToPath } from 'url';
 
+// --- Helpers de logging seguro ---
+function redactKey(str) {
+  if (!str || typeof str !== 'string') return str;
+  // Ex.: esconde cauda de chaves do tipo sk-********************************
+  return str.replace(/\b(sk-[A-Za-z0-9]{6})[A-Za-z0-9_-]{10,}\b/g, '$1…');
+}
+
+function normalizeOpenAIError(error) {
+  const status = error?.response?.status || error?.status || 500;
+  const rawDetail = error?.response?.data || error?.message || 'erro desconhecido';
+  const serialized = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
+  const safeDetail = redactKey(serialized);
+  const isAuth = status === 401 || /invalid|incorrect api key|authorization/i.test(serialized);
+  return {
+    code: isAuth ? 'invalid_api_key' : 'openai_request_failed',
+    httpStatus: isAuth ? 503 : status,
+    safeDetail
+  };
+}
+
 
 const raw = process.env.OPENAI_API_KEY || '';
 const trimmed = raw.trim();

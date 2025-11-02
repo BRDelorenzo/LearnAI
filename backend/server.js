@@ -10,14 +10,29 @@ import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { fileURLToPath } from 'url';
 
+// --- Helpers de logging seguro ---
+function redactKey(str) {
+  if (!str || typeof str !== 'string') return str;
+  // Ex.: esconde cauda de chaves do tipo sk-********************************
+  return str.replace(/\b(sk-[A-Za-z0-9]{6})[A-Za-z0-9_-]{10,}\b/g, '$1…');
+}
+
+function normalizeOpenAIError(error) {
+  const status = error?.response?.status || error?.status || 500;
+  const rawDetail = error?.response?.data || error?.message || 'erro desconhecido';
+  const serialized = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
+  const safeDetail = redactKey(serialized);
+  const isAuth = status === 401 || /invalid|incorrect api key|authorization/i.test(serialized);
+  return {
+    code: isAuth ? 'invalid_api_key' : 'openai_request_failed',
+    httpStatus: isAuth ? 503 : status,
+    safeDetail
+  };
+}
+
 
 const raw = process.env.OPENAI_API_KEY || '';
 const trimmed = raw.trim();
-
-const redactKey = (value) => {
-  if (!value) return value;
-  return String(value).replace(/sk-[a-zA-Z0-9-]{8,}/g, 'sk-***redacted***');
-};
 
 if (!trimmed) {
   console.warn('⚠️  OPENAI_API_KEY ausente. As rotas que dependem da OpenAI falharão.');
@@ -239,12 +254,13 @@ Utilize linguagem simples e incentive o aluno. Considere sinais de feedback do u
       level
     });
   } catch (e) {
-    const errInfo = normalizeOpenAIError(e);
-    console.error('❌ Erro no chat:', errInfo.safeDetail);
-    res.status(errInfo.httpStatus).json({
-      error: 'falha_no_chat',
-      code: errInfo.code,
-      message: buildClientMessage(errInfo.code, 'chat')
+    const status = e?.response?.status || 500;
+    const detail = e?.response?.data || e.message || 'erro desconhecido';
+    console.error('❌ Erro no chat:', detail);
+    res.status(status).json({
+      error: 'falha no chat',
+      detail,
+      hint: 'Verifique sua chave da OpenAI e tente novamente.'
     });
   }
 });

@@ -279,7 +279,7 @@ const audioSendBtn = document.getElementById('audioSendBtn');
 const audioRetryBtn = document.getElementById('audioRetryBtn');
 const audioDiscardBtn = document.getElementById('audioDiscardBtn');
 
-let mediaRecorder, chunks = [], mime = '', audioContext, analyser, monitorInterval, rmsSmooth = 0, recordStartedAt = null;
+let mediaRecorder, chunks = [], mime = '', audioContext, analyser, monitorInterval, rmsSmooth = 0, recordStartedAt = null, countdownTimer = null;
 let currentThreadId = null;
 
 function loadSettings() {
@@ -618,10 +618,7 @@ async function sendText({ textOverride = null, source = 'text' } = {}) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      const error = new Error(err.message || err.detail || `Servidor respondeu ${res.status}`);
-      error.code = err.code;
-      error.status = res.status;
-      throw error;
+      throw new Error(err.detail || `Servidor respondeu ${res.status}`);
     }
     const data = await res.json();
     const assistantMessage = {
@@ -646,27 +643,14 @@ async function sendText({ textOverride = null, source = 'text' } = {}) {
     setStatus('Pronto. Continue praticando!');
   } catch (err) {
     console.error(err);
-    const isAuthIssue = err?.code === 'invalid_api_key';
-    const translation = isAuthIssue
-      ? 'Configure a variável de ambiente OPENAI_API_KEY com uma chave válida da OpenAI e reinicie o servidor.'
-      : (err?.message || 'Falha inesperada ao falar com o coach.');
-    const suggestions = isAuthIssue
-      ? [
-          'Verifique na plataforma da OpenAI se a chave utilizada ainda está ativa.',
-          'Atualize o arquivo .env com a chave correta e reinicie o backend.'
-        ]
-      : [
-          'Você pode revisar mensagens anteriores enquanto aguarda.',
-          'Copie sua pergunta para não perder o conteúdo.'
-        ];
     const errorMessage = {
       id: newId(),
       role: 'assistant',
       text: 'Não consegui falar com o coach agora. Verifique sua conexão e tente novamente em instantes.',
       createdAt: Date.now(),
       meta: {
-        translation,
-        extraSuggestions: suggestions,
+        translation: err.message,
+        extraSuggestions: ['Você pode revisar mensagens anteriores enquanto aguarda.', 'Copie sua pergunta para não perder o conteúdo.'],
         culturalTip: 'Mesmo quando a tecnologia falha, pequenos intervalos ajudam a consolidar o aprendizado.',
         confidence: 'baixa'
       }
@@ -688,6 +672,14 @@ function pickMime() {
   return '';
 }
 
+async function runCountdown(seconds) {
+  for (let remaining = seconds; remaining > 0; remaining -= 1) {
+    setStatus(`Iniciando gravação em ${remaining}…`);
+    await new Promise(resolve => { countdownTimer = setTimeout(resolve, 900); });
+  }
+  countdownTimer = null;
+}
+
 micBtn.addEventListener('click', async () => {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     stopRecording('Parando gravação…');
@@ -698,6 +690,7 @@ micBtn.addEventListener('click', async () => {
 
 async function startRecording() {
   try {
+    await runCountdown(3);
     setStatus('Preparando microfone…');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     mime = pickMime();
@@ -749,6 +742,7 @@ function stopRecording(msg = 'Parando…') {
   micBtn.classList.remove('rec');
   setStatus(msg);
   clearInterval(monitorInterval); monitorInterval = null;
+  if (countdownTimer) clearTimeout(countdownTimer);
   try { audioContext?.close(); } catch {}
   analyser = null; vuFill.style.width = '0%'; rmsSmooth = 0;
 }
@@ -762,25 +756,69 @@ async function onStop() {
   setStatus('Transcrevendo seu áudio…');
   try {
     const res = await fetch('/transcrever', { method: 'POST', body: form });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const error = new Error(err.message || `Erro ${res.status}`);
-      error.code = err.code;
-      error.status = res.status;
-      throw error;
-    }
+    if (!res.ok) throw new Error(`Erro ${res.status}`);
     const data = await res.json();
     const text = data.transcricao || data.transcript || '';
     showAudioPreview(text, durationSec);
     setStatus('Transcrição pronta! Revise antes de enviar.');
   } catch (err) {
     console.error(err);
-    if (err?.code === 'invalid_api_key') {
-      setStatus('A transcrição falhou porque a chave OPENAI_API_KEY é inválida. Atualize a variável e reinicie o backend.');
-    } else {
-      setStatus('Não consegui transcrever. Tente novamente ou ajuste o ambiente.');
-    }
+    setStatus('Não consegui transcrever. Tente novamente ou ajuste o ambiente.');
   }
+});
+
+audioRetryBtn.addEventListener('click', async () => {
+  hideAudioPreview();
+  await startRecording();
+});
+
+audioDiscardBtn.addEventListener('click', () => {
+  hideAudioPreview();
+  setStatus('Transcrição descartada. Grave outra vez quando quiser.');
+});
+
+sendBtn.addEventListener('click', () => sendText());
+textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendText();
+  }
+});
+textInput.addEventListener('input', () => autoGrow(textInput));
+textInput.addEventListener('focus', () => chipsVisible(false));
+textInput.addEventListener('blur', () => {
+  const thread = threads[currentThreadId];
+  if (thread && thread.messages.length === 0) chipsVisible(true);
+});
+
+renameBtn.addEventListener('click', renameCurrentThread);
+favoriteBtn.addEventListener('click', toggleFavorite);
+newThreadBtn.addEventListener('click', newThread);
+newThreadBtnMobile.addEventListener('click', newThread);
+
+hamb?.addEventListener('click', () => sidebar.classList.toggle('open'));
+
+goalSelect.addEventListener('change', () => {
+  settings.goal = goalSelect.value;
+  saveSettings(settings);
+  renderChips();
+});
+levelSelect.addEventListener('change', () => {
+  settings.level = levelSelect.value;
+  saveSettings(settings);
+  renderChips();
+});
+
+function bootstrap() {
+  goalSelect.value = settings.goal;
+  levelSelect.value = settings.level;
+  currentThreadId = loadLastThreadId();
+  ensureCurrentThread();
+  renderHistory();
+  openThread(currentThreadId);
+  renderProgress();
+  renderChips();
+  autoGrow(textInput);
 }
 
 function showAudioPreview(text, duration) {

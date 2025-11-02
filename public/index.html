@@ -765,6 +765,60 @@ async function onStop() {
     console.error(err);
     setStatus('Não consegui transcrever. Tente novamente ou ajuste o ambiente.');
   }
+});
+
+audioRetryBtn.addEventListener('click', async () => {
+  hideAudioPreview();
+  await startRecording();
+});
+
+audioDiscardBtn.addEventListener('click', () => {
+  hideAudioPreview();
+  setStatus('Transcrição descartada. Grave outra vez quando quiser.');
+});
+
+sendBtn.addEventListener('click', () => sendText());
+textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendText();
+  }
+});
+textInput.addEventListener('input', () => autoGrow(textInput));
+textInput.addEventListener('focus', () => chipsVisible(false));
+textInput.addEventListener('blur', () => {
+  const thread = threads[currentThreadId];
+  if (thread && thread.messages.length === 0) chipsVisible(true);
+});
+
+renameBtn.addEventListener('click', renameCurrentThread);
+favoriteBtn.addEventListener('click', toggleFavorite);
+newThreadBtn.addEventListener('click', newThread);
+newThreadBtnMobile.addEventListener('click', newThread);
+
+hamb?.addEventListener('click', () => sidebar.classList.toggle('open'));
+
+goalSelect.addEventListener('change', () => {
+  settings.goal = goalSelect.value;
+  saveSettings(settings);
+  renderChips();
+});
+levelSelect.addEventListener('change', () => {
+  settings.level = levelSelect.value;
+  saveSettings(settings);
+  renderChips();
+});
+
+function bootstrap() {
+  goalSelect.value = settings.goal;
+  levelSelect.value = settings.level;
+  currentThreadId = loadLastThreadId();
+  ensureCurrentThread();
+  renderHistory();
+  openThread(currentThreadId);
+  renderProgress();
+  renderChips();
+  autoGrow(textInput);
 }
 
 function showAudioPreview(text, duration) {

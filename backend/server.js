@@ -14,11 +14,6 @@ import { fileURLToPath } from 'url';
 const raw = process.env.OPENAI_API_KEY || '';
 const trimmed = raw.trim();
 
-const redactKey = (value) => {
-  if (!value) return value;
-  return String(value).replace(/sk-[a-zA-Z0-9-]{8,}/g, 'sk-***redacted***');
-};
-
 if (!trimmed) {
   console.warn('⚠️  OPENAI_API_KEY ausente. As rotas que dependem da OpenAI falharão.');
 }
@@ -239,12 +234,13 @@ Utilize linguagem simples e incentive o aluno. Considere sinais de feedback do u
       level
     });
   } catch (e) {
-    const errInfo = normalizeOpenAIError(e);
-    console.error('❌ Erro no chat:', errInfo.safeDetail);
-    res.status(errInfo.httpStatus).json({
-      error: 'falha_no_chat',
-      code: errInfo.code,
-      message: buildClientMessage(errInfo.code, 'chat')
+    const status = e?.response?.status || 500;
+    const detail = e?.response?.data || e.message || 'erro desconhecido';
+    console.error('❌ Erro no chat:', detail);
+    res.status(status).json({
+      error: 'falha no chat',
+      detail,
+      hint: 'Verifique sua chave da OpenAI e tente novamente.'
     });
   }
 });

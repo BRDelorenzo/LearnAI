@@ -618,10 +618,7 @@ async function sendText({ textOverride = null, source = 'text' } = {}) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      const error = new Error(err.message || err.detail || `Servidor respondeu ${res.status}`);
-      error.code = err.code;
-      error.status = res.status;
-      throw error;
+      throw new Error(err.detail || `Servidor respondeu ${res.status}`);
     }
     const data = await res.json();
     const assistantMessage = {
@@ -646,27 +643,14 @@ async function sendText({ textOverride = null, source = 'text' } = {}) {
     setStatus('Pronto. Continue praticando!');
   } catch (err) {
     console.error(err);
-    const isAuthIssue = err?.code === 'invalid_api_key';
-    const translation = isAuthIssue
-      ? 'Configure a variável de ambiente OPENAI_API_KEY com uma chave válida da OpenAI e reinicie o servidor.'
-      : (err?.message || 'Falha inesperada ao falar com o coach.');
-    const suggestions = isAuthIssue
-      ? [
-          'Verifique na plataforma da OpenAI se a chave utilizada ainda está ativa.',
-          'Atualize o arquivo .env com a chave correta e reinicie o backend.'
-        ]
-      : [
-          'Você pode revisar mensagens anteriores enquanto aguarda.',
-          'Copie sua pergunta para não perder o conteúdo.'
-        ];
     const errorMessage = {
       id: newId(),
       role: 'assistant',
       text: 'Não consegui falar com o coach agora. Verifique sua conexão e tente novamente em instantes.',
       createdAt: Date.now(),
       meta: {
-        translation,
-        extraSuggestions: suggestions,
+        translation: err.message,
+        extraSuggestions: ['Você pode revisar mensagens anteriores enquanto aguarda.', 'Copie sua pergunta para não perder o conteúdo.'],
         culturalTip: 'Mesmo quando a tecnologia falha, pequenos intervalos ajudam a consolidar o aprendizado.',
         confidence: 'baixa'
       }
@@ -772,24 +756,14 @@ async function onStop() {
   setStatus('Transcrevendo seu áudio…');
   try {
     const res = await fetch('/transcrever', { method: 'POST', body: form });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const error = new Error(err.message || `Erro ${res.status}`);
-      error.code = err.code;
-      error.status = res.status;
-      throw error;
-    }
+    if (!res.ok) throw new Error(`Erro ${res.status}`);
     const data = await res.json();
     const text = data.transcricao || data.transcript || '';
     showAudioPreview(text, durationSec);
     setStatus('Transcrição pronta! Revise antes de enviar.');
   } catch (err) {
     console.error(err);
-    if (err?.code === 'invalid_api_key') {
-      setStatus('A transcrição falhou porque a chave OPENAI_API_KEY é inválida. Atualize a variável e reinicie o backend.');
-    } else {
-      setStatus('Não consegui transcrever. Tente novamente ou ajuste o ambiente.');
-    }
+    setStatus('Não consegui transcrever. Tente novamente ou ajuste o ambiente.');
   }
 }
 

@@ -11,18 +11,13 @@ import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { fileURLToPath } from 'url';
 
 
-// ✅ [Sanity Check da chave API]
 const raw = process.env.OPENAI_API_KEY || '';
 const trimmed = raw.trim();
 
-console.log('🔑 raw prefix/len:', raw ? raw.slice(0, 12) + '…' : '(vazia)', raw.length);
-console.log('🔑 tri prefix/len:', trimmed ? trimmed.slice(0, 12) + '…' : '(vazia)', trimmed.length);
+if (!trimmed) {
+  console.warn('⚠️  OPENAI_API_KEY ausente. As rotas que dependem da OpenAI falharão.');
+}
 
-// Mostra os códigos ASCII dos 3 últimos caracteres -> detecta espaço/CR/LF invisível
-const tail = raw.slice(-3);
-console.log('🔚 tail chars (charCode):', [...tail].map(ch => ch.charCodeAt(0)));
-
-// 🔧 Use sempre a chave "limpa" (trimmed) para criar o client
 const openai = new OpenAI({
   apiKey: trimmed
 });
@@ -136,23 +131,89 @@ app.post('/transcrever', upload.single('file'), async (req, res) => {
 
 // Texto → resposta da OpenAI
 app.post('/chat', express.json(), async (req, res) => {
-  const { text } = req.body || {};
-  if (!text) return res.status(400).json({ error: 'texto ausente' });
+  const {
+    text,
+    goal = 'conversacao_geral',
+    level = 'intermediario',
+    history = [],
+    feedbackSignals = []
+  } = req.body || {};
+
+  if (!text) {
+    return res.status(400).json({ error: 'texto ausente' });
+  }
+
+  const goalLabelMap = {
+    conversacao_geral: 'Conversação geral',
+    viagens: 'Inglês para viagens',
+    entrevistas: 'Inglês para entrevistas de emprego',
+    exames: 'Preparação para exames (ex.: TOEFL, IELTS)',
+    negocios: 'Inglês corporativo e negócios'
+  };
+
+  const levelLabelMap = {
+    iniciante: 'iniciante',
+    intermediario: 'intermediário',
+    avancado: 'avançado'
+  };
+
+  const goalLabel = goalLabelMap[goal] || goal;
+  const levelLabel = levelLabelMap[level] || level;
+
+  const systemPrompt = `Você é um coach de inglês paciente e encorajador. Adapte sua resposta ao objetivo do estudante (${goalLabel}) e ao nível declarado (${levelLabel}).
+Responda sempre em JSON válido seguindo exatamente este schema:
+{
+  "reply": "resposta principal em inglês",
+  "translation": "tradução em português da resposta principal",
+  "grammarNotes": "dicas claras sobre gramática/vocabulário utilizados",
+  "vocabulary": [
+    { "term": "palavra/frase", "meaning": "explicação em português", "example": "frase curta em inglês" }
+  ],
+  "followUpQuestion": "pergunta curta para manter a conversa alinhada ao objetivo",
+  "extraSuggestions": ["outras abordagens ou tarefas de estudo"],
+  "culturalTip": "contexto cultural ou sugestão motivacional",
+  "confidence": "baixa|media|alta"
+}
+Utilize linguagem simples e incentive o aluno. Considere sinais de feedback do usuário: ${JSON.stringify(feedbackSignals || []).slice(0, 600)}.`;
+
+  const trimmedHistory = Array.isArray(history) ? history.slice(-8) : [];
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...trimmedHistory.map(item => ({ role: item.role === 'assistant' ? 'assistant' : 'user', content: item.text })),
+    { role: 'user', content: text }
+  ];
 
   try {
-    const r = await openai.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: 'Você é um assistente de estudos de línguas. Responda de forma breve e útil.' },
-        { role: 'user', content: text }
-      ],
-      temperature: 0.2
+      messages,
+      temperature: 0.4,
+      response_format: { type: 'json_object' }
     });
-    const reply = r.choices?.[0]?.message?.content || '';
-    res.json({ reply });
+
+    const rawContent = completion.choices?.[0]?.message?.content || '{}';
+    let data;
+    try {
+      data = JSON.parse(rawContent);
+    } catch (parseErr) {
+      console.warn('⚠️  Falha ao parsear JSON do modelo, retornando fallback.', parseErr);
+      data = { reply: rawContent };
+    }
+
+    res.json({
+      ...data,
+      goal,
+      level
+    });
   } catch (e) {
-    console.error('chat error', e?.response?.data || e);
-    res.status(500).json({ error: 'falha no chat' });
+    const status = e?.response?.status || 500;
+    const detail = e?.response?.data || e.message || 'erro desconhecido';
+    console.error('❌ Erro no chat:', detail);
+    res.status(status).json({
+      error: 'falha no chat',
+      detail,
+      hint: 'Verifique sua chave da OpenAI e tente novamente.'
+    });
   }
 });
 

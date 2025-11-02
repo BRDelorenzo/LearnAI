@@ -44,19 +44,6 @@ const openai = new OpenAI({
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
-const normalizeOpenAIError = (error) => {
-  const status = error?.response?.status || 500;
-  const rawDetail = error?.response?.data || error?.message || 'erro desconhecido';
-  const serialized = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
-  const safeDetail = redactKey(serialized);
-  const isAuth = status === 401 || /incorrect api key/i.test(serialized);
-  return {
-    code: isAuth ? 'invalid_api_key' : 'openai_request_failed',
-    httpStatus: isAuth ? 503 : status,
-    safeDetail
-  };
-};
-
 const buildClientMessage = (code, context) => {
   if (code === 'invalid_api_key') {
     return 'Sua chave da OpenAI parece inválida ou expirada. Atualize a variável OPENAI_API_KEY e reinicie o backend.';

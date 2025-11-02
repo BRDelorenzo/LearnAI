@@ -10,6 +10,26 @@ import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { fileURLToPath } from 'url';
 
+// --- Helpers de logging seguro ---
+function redactKey(str) {
+  if (!str || typeof str !== 'string') return str;
+  // Ex.: esconde cauda de chaves do tipo sk-********************************
+  return str.replace(/\b(sk-[A-Za-z0-9]{6})[A-Za-z0-9_-]{10,}\b/g, '$1…');
+}
+
+function normalizeOpenAIError(error) {
+  const status = error?.response?.status || error?.status || 500;
+  const rawDetail = error?.response?.data || error?.message || 'erro desconhecido';
+  const serialized = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
+  const safeDetail = redactKey(serialized);
+  const isAuth = status === 401 || /invalid|incorrect api key|authorization/i.test(serialized);
+  return {
+    code: isAuth ? 'invalid_api_key' : 'openai_request_failed',
+    httpStatus: isAuth ? 503 : status,
+    safeDetail
+  };
+}
+
 
 const raw = process.env.OPENAI_API_KEY || '';
 const trimmed = raw.trim();
@@ -23,6 +43,29 @@ const openai = new OpenAI({
 });
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+const normalizeOpenAIError = (error) => {
+  const status = error?.response?.status || 500;
+  const rawDetail = error?.response?.data || error?.message || 'erro desconhecido';
+  const serialized = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
+  const safeDetail = redactKey(serialized);
+  const isAuth = status === 401 || /incorrect api key/i.test(serialized);
+  return {
+    code: isAuth ? 'invalid_api_key' : 'openai_request_failed',
+    httpStatus: isAuth ? 503 : status,
+    safeDetail
+  };
+};
+
+const buildClientMessage = (code, context) => {
+  if (code === 'invalid_api_key') {
+    return 'Sua chave da OpenAI parece inválida ou expirada. Atualize a variável OPENAI_API_KEY e reinicie o backend.';
+  }
+  if (context === 'transcription') {
+    return 'Não foi possível transcrever o áudio agora. Tente novamente em instantes.';
+  }
+  return 'Não foi possível falar com o coach agora. Tente novamente em alguns instantes.';
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -121,8 +164,13 @@ app.post('/transcrever', upload.single('file'), async (req, res) => {
     console.log('📝 Transcrição:', result.text);
     res.json({ transcricao: result.text });
   } catch (e) {
-    console.error('❌ Erro na transcrição:', e?.response?.data || e.message);
-    res.status(500).json({ error: 'Erro ao transcrever o áudio.' });
+    const errInfo = normalizeOpenAIError(e);
+    console.error('❌ Erro na transcrição:', errInfo.safeDetail);
+    res.status(errInfo.httpStatus).json({
+      error: 'falha_na_transcricao',
+      code: errInfo.code,
+      message: buildClientMessage(errInfo.code, 'transcription')
+    });
   } finally {
     try { fs.unlinkSync(wavPath); } catch {}
   }

@@ -48,7 +48,22 @@
   .progress-card h3 { margin: 0; font-size: 1rem; }
   .progress-card ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
   .progress-card li { font-size: .9rem; color: var(--muted); }
+  .hist-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .hist-title { opacity: .85; font-size: .9rem; }
+  .clear-history {
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #15161a;
+    color: var(--muted);
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: .8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: border .2s, background .2s, color .2s;
+  }
+  .clear-history:hover { border-color: var(--danger); color: var(--danger); }
   .hist { overflow: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; }
   .hist button { width: 100%; text-align: left; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: border .2s, background .2s; }
   .hist button:hover { background: #15161a; }
@@ -66,11 +81,43 @@
   .hamb { width: 42px; height: 42px; display: inline-grid; place-items: center; }
   .pill { padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; }
   .pill[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-  .settings { display: flex; gap: 12px; align-items: center; }
+  .settings { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .settings label { font-size: .85rem; color: var(--muted); display: grid; gap: 4px; }
   .settings select { border-radius: 10px; border: 1px solid var(--border); background: #14151a; color: var(--text); padding: 8px 10px; }
   .session-meta { display: flex; gap: 8px; align-items: center; flex: 1; }
   .session-meta span { font-weight: 500; }
+
+  .goal-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .goal-tab {
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #14151a;
+    color: var(--muted);
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: .85rem;
+    flex: 0 0 auto;
+    transition: background .2s, border .2s, color .2s, transform .2s;
+  }
+  .goal-tab:hover { transform: translateY(-1px); background: #18191f; }
+  .goal-tab.active {
+    border-color: var(--primary);
+    color: #fff;
+    background: linear-gradient(135deg, rgba(109,107,249,.28), rgba(109,107,249,.1));
+    box-shadow: 0 6px 14px rgba(28,27,62,.25);
+  }
+
+  .ideas-card {
+    background: linear-gradient(135deg, rgba(125,126,255,.08), rgba(34,197,94,.06));
+    border: 1px solid rgba(109,107,249,.25);
+    border-radius: 16px;
+    padding: 16px;
+    display: grid;
+    gap: 10px;
+  }
+  .ideas-card h3 { margin: 0; font-size: .95rem; color: #cbd5ff; }
+  .ideas-card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: rgba(232,234,237,.85); font-size: .85rem; }
+
 
   .chat { padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow: auto; scroll-behavior: smooth; }
   .chat:focus { outline: none; }
@@ -133,6 +180,8 @@
   @media (max-width: 640px) {
     .settings { flex-direction: column; align-items: stretch; }
     .settings label { width: 100%; }
+    .goal-tabs { width: 100%; }
+    .goal-tab { flex: 1 1 140px; text-align: center; }
     .chips { bottom: 140px; }
     .msg { padding: 14px; }
   }
@@ -155,7 +204,20 @@
         <li><strong id="progressStreak">0</strong> dias ativos</li>
       </ul>
     </div>
-    <div class="hist-title">Histórico</div>
+    <div class="ideas-card" aria-live="polite">
+      <h3>Dicas para melhorar o visual</h3>
+      <ul>
+        <li>Inclua ilustrações suaves ou ícones consistentes para apoiar as seções principais.</li>
+        <li>Use animações sutis em botões e estados de carregamento para reforçar feedback imediato.</li>
+        <li>Teste combinações de tipografia com variação de peso para destacar hierarquia e ritmo.</li>
+      </ul>
+    </div>
+    <div class="hist-header">
+      <div class="hist-title">Histórico</div>
+      <button class="clear-history" id="clearHistoryBtn" type="button" aria-label="Excluir todo o histórico">
+        🗑 Limpar
+      </button>
+    </div>
     <div class="hist" id="historyList">
       <div class="empty">Sem conversas ainda.</div>
     </div>
@@ -169,16 +231,8 @@
         <button class="pill" id="favoriteBtn" aria-label="Favoritar conversa" aria-pressed="false">☆ Favorita</button>
       </div>
       <div class="settings" role="group" aria-label="Preferências de estudo">
-        <label>Objetivo
-          <select id="goalSelect">
-            <option value="conversacao_geral">Conversação geral</option>
-            <option value="viagens">Viagens</option>
-            <option value="entrevistas">Entrevistas de emprego</option>
-            <option value="exames">Preparação para exames</option>
-            <option value="negocios">Negócios</option>
-          </select>
-        </label>
-        <label>Nível
+        <div class="goal-tabs" id="goalTabs" role="group" aria-label="Foco da sessão"></div>
+        <label class="level-select">Nível
           <select id="levelSelect">
             <option value="iniciante">Iniciante</option>
             <option value="intermediario">Intermediário</option>
@@ -250,6 +304,13 @@ const GOAL_SUGGESTIONS = {
     { title: 'Pitch estratégico', body: 'Prepare a persuasive pitch for an investor.', level: 'avancado' }
   ]
 };
+const GOAL_OPTIONS = [
+  { id: 'conversacao_geral', label: 'Conversação' },
+  { id: 'viagens', label: 'Viagens' },
+  { id: 'entrevistas', label: 'Entrevistas' },
+  { id: 'exames', label: 'Exames' },
+  { id: 'negocios', label: 'Negócios' }
+];
 const WELCOME_MESSAGE = `Olá! Eu sou o seu coach pessoal de inglês. Escolha um objetivo na parte superior, explore as sugestões abaixo ou envie uma pergunta. Vou responder com explicações, tradução e próximos passos para o seu estudo.`;
 
 const chatEl = document.getElementById('chat');
@@ -267,7 +328,7 @@ const newThreadBtnMobile = document.getElementById('newThreadBtnMobile');
 const sessionTitleEl = document.getElementById('sessionTitle');
 const renameBtn = document.getElementById('renameBtn');
 const favoriteBtn = document.getElementById('favoriteBtn');
-const goalSelect = document.getElementById('goalSelect');
+const goalTabs = document.getElementById('goalTabs');
 const levelSelect = document.getElementById('levelSelect');
 const progressSessionsEl = document.getElementById('progressSessions');
 const progressMessagesEl = document.getElementById('progressMessages');
@@ -279,6 +340,7 @@ const audioMetaEl = document.getElementById('audioMeta');
 const audioSendBtn = document.getElementById('audioSendBtn');
 const audioRetryBtn = document.getElementById('audioRetryBtn');
 const audioDiscardBtn = document.getElementById('audioDiscardBtn');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
 let mediaRecorder, chunks = [], mime = '', audioContext, analyser, monitorInterval, rmsSmooth = 0, recordStartedAt = null, countdownTimer = null;
 let currentThreadId = null;
@@ -313,6 +375,11 @@ function saveFeedbackLog(arr) { localStorage.setItem('learnai-feedback', JSON.st
 let settings = { ...DEFAULT_SETTINGS, ...loadSettings() };
 let threads = loadThreads();
 let feedbackLog = loadFeedbackLog();
+
+if (!GOAL_SUGGESTIONS[settings.goal]) {
+  settings.goal = DEFAULT_SETTINGS.goal;
+  saveSettings(settings);
+}
 
 function setStatus(msg) {
   statusEl.textContent = msg;
@@ -392,6 +459,27 @@ function renderChips() {
   }
 }
 
+function renderGoalTabs() {
+  if (!goalTabs) return;
+  goalTabs.innerHTML = '';
+  GOAL_OPTIONS.forEach(option => {
+    const btn = document.createElement('button');
+    const active = option.id === settings.goal;
+    btn.type = 'button';
+    btn.className = `goal-tab${active ? ' active' : ''}`;
+    btn.textContent = option.label;
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.addEventListener('click', () => {
+      if (settings.goal === option.id) return;
+      settings.goal = option.id;
+      saveSettings(settings);
+      renderGoalTabs();
+      renderChips();
+    });
+    goalTabs.appendChild(btn);
+  });
+}
+
 function chipsVisible(visible) {
   chipsEl.classList.toggle('hidden', !visible);
 }
@@ -420,6 +508,21 @@ function renderHistory() {
     btn.addEventListener('click', () => openThread(id));
     historyList.appendChild(btn);
   });
+}
+
+function clearHistory() {
+  const hasThreads = Object.keys(threads).length > 0;
+  if (!hasThreads) return;
+  if (!confirm('Tem certeza de que deseja excluir todo o histórico de conversas?')) return;
+  threads = {};
+  saveThreads(threads);
+  localStorage.removeItem('learnai-last-thread');
+  currentThreadId = null;
+  ensureCurrentThread();
+  renderHistory();
+  openThread(currentThreadId);
+  renderProgress();
+  setStatus('Histórico removido. Uma nova conversa foi iniciada.');
 }
 
 function renderThreadMessages(thread) {
@@ -799,20 +902,16 @@ newThreadBtnMobile.addEventListener('click', newThread);
 
 hamb?.addEventListener('click', () => sidebar.classList.toggle('open'));
 
-goalSelect.addEventListener('change', () => {
-  settings.goal = goalSelect.value;
-  saveSettings(settings);
-  renderChips();
-});
-levelSelect.addEventListener('change', () => {
+levelSelect?.addEventListener('change', () => {
   settings.level = levelSelect.value;
   saveSettings(settings);
   renderChips();
 });
+clearHistoryBtn?.addEventListener('click', clearHistory);
 
 function bootstrap() {
-  goalSelect.value = settings.goal;
-  levelSelect.value = settings.level;
+  if (levelSelect) levelSelect.value = settings.level;
+  renderGoalTabs();
   currentThreadId = loadLastThreadId();
   ensureCurrentThread();
   renderHistory();
@@ -875,29 +974,6 @@ newThreadBtn.addEventListener('click', newThread);
 newThreadBtnMobile.addEventListener('click', newThread);
 
 hamb?.addEventListener('click', () => sidebar.classList.toggle('open'));
-
-goalSelect.addEventListener('change', () => {
-  settings.goal = goalSelect.value;
-  saveSettings(settings);
-  renderChips();
-});
-levelSelect.addEventListener('change', () => {
-  settings.level = levelSelect.value;
-  saveSettings(settings);
-  renderChips();
-});
-
-function bootstrap() {
-  goalSelect.value = settings.goal;
-  levelSelect.value = settings.level;
-  currentThreadId = loadLastThreadId();
-  ensureCurrentThread();
-  renderHistory();
-  openThread(currentThreadId);
-  renderProgress();
-  renderChips();
-  autoGrow(textInput);
-}
 
 bootstrap();
 </script>

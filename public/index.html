@@ -74,8 +74,9 @@
 
   .chat { padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow: auto; scroll-behavior: smooth; }
   .chat:focus { outline: none; }
-  .msg { max-width: 760px; margin: 0 auto; border: 1px solid var(--border); background: var(--panel); border-radius: 18px; padding: 16px 18px; line-height: 1.5; display: grid; gap: 12px; position: relative; }
-  .msg.me { border-color: #2c2e33; background: #14151a; }
+  .msg { max-width: 760px; border: 1px solid var(--border); background: var(--panel); border-radius: 18px; padding: 16px 18px; line-height: 1.5; display: grid; gap: 12px; position: relative; }
+  .msg.bot { align-self: flex-start; }
+  .msg.me { align-self: flex-end; border-color: var(--primary); background: linear-gradient(135deg, rgba(109,107,249,.24), rgba(109,107,249,.08)); color: #f5f5ff; }
   .msg .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .msg .actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .msg .actions button { border-radius: 10px; border: 1px solid var(--border); background: #1b1c21; color: var(--text); padding: 6px 10px; cursor: pointer; font-size: .85rem; }

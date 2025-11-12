@@ -231,14 +231,16 @@
         <button class="pill" id="favoriteBtn" aria-label="Favoritar conversa" aria-pressed="false">☆ Favorita</button>
       </div>
       <div class="settings" role="group" aria-label="Preferências de estudo">
-        <div class="goal-tabs" id="goalTabs" role="group" aria-label="Foco da sessão"></div>
-        <label class="level-select">Nível
-          <select id="levelSelect">
-            <option value="iniciante">Iniciante</option>
-            <option value="intermediario">Intermediário</option>
-            <option value="avancado">Avançado</option>
+        <label class="level-select">Módulo
+          <select id="moduleSelect">
+            <option>1 - Destravando para avancar</option>
+            <option>2 - Ficando mais seguro</option>
+            <option>3 - Caminhando em direcao ao alvo</option>
+            <option>4 - Enjoy The Process</option>
+            <option>5 - Cada vez mais perto do objetivo</option>
           </select>
         </label>
+        <div class="goal-tabs" id="goalTabs" role="group" aria-label="Foco da sessão"></div>
       </div>
     </div>
 
@@ -276,7 +278,7 @@
 </div>
 
 <script>
-const DEFAULT_SETTINGS = { goal: 'conversacao_geral', level: 'intermediario' };
+const DEFAULT_SETTINGS = { goal: 'conversacao_geral', level: 'intermediario', moduleId: '1 - Destravando para avancar' };
 const GOAL_SUGGESTIONS = {
   conversacao_geral: [
     { title: 'Quebre o gelo', body: 'Start a short conversation about your day.', level: 'iniciante' },
@@ -304,13 +306,6 @@ const GOAL_SUGGESTIONS = {
     { title: 'Pitch estratégico', body: 'Prepare a persuasive pitch for an investor.', level: 'avancado' }
   ]
 };
-const GOAL_OPTIONS = [
-  { id: 'conversacao_geral', label: 'Conversação' },
-  { id: 'viagens', label: 'Viagens' },
-  { id: 'entrevistas', label: 'Entrevistas' },
-  { id: 'exames', label: 'Exames' },
-  { id: 'negocios', label: 'Negócios' }
-];
 const WELCOME_MESSAGE = `Olá! Eu sou o seu coach pessoal de inglês. Escolha um objetivo na parte superior, explore as sugestões abaixo ou envie uma pergunta. Vou responder com explicações, tradução e próximos passos para o seu estudo.`;
 
 const chatEl = document.getElementById('chat');
@@ -341,6 +336,7 @@ const audioSendBtn = document.getElementById('audioSendBtn');
 const audioRetryBtn = document.getElementById('audioRetryBtn');
 const audioDiscardBtn = document.getElementById('audioDiscardBtn');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+const moduleSelect = document.getElementById('moduleSelect');
 
 let mediaRecorder, chunks = [], mime = '', audioContext, analyser, monitorInterval, rmsSmooth = 0, recordStartedAt = null, countdownTimer = null;
 let currentThreadId = null;
@@ -480,6 +476,14 @@ function renderGoalTabs() {
   });
 }
 
+const GOAL_OPTIONS = [
+  { id: 'conversacao_geral', label: 'Conversação' },
+  { id: 'viagens',           label: 'Viagens' },
+  { id: 'entrevistas',       label: 'Entrevistas' },
+  { id: 'exames',            label: 'Exames' },
+  { id: 'negocios',          label: 'Negócios' }
+];
+
 function chipsVisible(visible) {
   chipsEl.classList.toggle('hidden', !visible);
 }
@@ -585,20 +589,29 @@ function renderAssistantMessage(message, save = true, temporary = false) {
   const meta = message.meta || {};
   const confidenceColor = meta.confidence === 'baixa' ? 'var(--danger)' : meta.confidence === 'media' ? 'var(--warning)' : 'var(--accent)';
   const vocabList = Array.isArray(meta.vocabulary) ? meta.vocabulary.map(item => `<li><strong>${escapeHTML(item.term || '')}:</strong> ${escapeHTML(item.meaning || '')}<br><em>${escapeHTML(item.example || '')}</em></li>`).join('') : '';
+  const sourcesHtml = (Array.isArray(meta.sources) && meta.sources.length)
+  ? `<div style="opacity:.85;font-size:.8rem;display:flex;flex-wrap:wrap;gap:6px">
+       <span style="color:var(--muted)">Fontes:</span>
+       ${meta.sources.map(s => 
+         `<span class="pill" title="${escapeHTML(s.source)}" style="padding:4px 8px">${s.idx}</span>`
+       ).join('')}
+     </div>`
+  : '';
   div.innerHTML = `
-    <div class="label">Coach LearnAI</div>
-    <div>${formatText(message.text || meta.reply || '')}</div>
-    ${meta.translation ? `<div class="translation"><strong>Tradução:</strong><br>${formatText(meta.translation)}</div>` : ''}
-    ${meta.grammarNotes ? `<details open><summary>Explicação</summary><p>${formatText(meta.grammarNotes)}</p></details>` : ''}
-    ${vocabList ? `<details><summary>Vocabulário</summary><ul>${vocabList}</ul></details>` : ''}
-    ${meta.followUpQuestion ? `<div><strong>Próxima pergunta:</strong> ${formatText(meta.followUpQuestion)}</div>` : ''}
-    ${Array.isArray(meta.extraSuggestions) && meta.extraSuggestions.length ? `<details><summary>Continue praticando</summary><ul>${meta.extraSuggestions.map(s => `<li>${formatText(s)}</li>`).join('')}</ul></details>` : ''}
-    ${meta.culturalTip ? `<div><span class="tag"><span class="dot" style="background:${confidenceColor}"></span>${escapeHTML(meta.confidence ? `confiança ${meta.confidence}` : 'dica')}</span><br>${formatText(meta.culturalTip)}</div>` : ''}
-    ${temporary ? '' : `<div class="actions" role="group" aria-label="Feedback desta resposta">
-      <button type="button" data-feedback="entendi">👍 Entendi</button>
-      <button type="button" data-feedback="duvidas">🤔 Ainda tenho dúvidas</button>
-    </div>`}
-  `;
+  <div class="label">Coach LearnAI</div>
+  <div>${formatText(message.text || meta.reply || '')}</div>
+  ${meta.translation ? `<div class="translation"><strong>Tradução:</strong><br>${formatText(meta.translation)}</div>` : ''}
+  ${meta.grammarNotes ? `<details open><summary>Explicação</summary><p>${formatText(meta.grammarNotes)}</p></details>` : ''}
+  ${vocabList ? `<details><summary>Vocabulário</summary><ul>${vocabList}</ul></details>` : ''}
+  ${meta.followUpQuestion ? `<div><strong>Próxima pergunta:</strong> ${formatText(meta.followUpQuestion)}</div>` : ''}
+  ${Array.isArray(meta.extraSuggestions) && meta.extraSuggestions.length ? `<details><summary>Continue praticando</summary><ul>${meta.extraSuggestions.map(s => `<li>${formatText(s)}</li>`).join('')}</ul></details>` : ''}
+  ${meta.culturalTip ? `<div><span class="tag"><span class="dot" style="background:${confidenceColor}"></span>${escapeHTML(meta.confidence ? `confiança ${meta.confidence}` : 'dica')}</span><br>${formatText(meta.culturalTip)}</div>` : ''}
+  ${sourcesHtml}
+  ${temporary ? '' : `<div class="actions" role="group" aria-label="Feedback desta resposta">
+    <button type="button" data-feedback="entendi">👍 Entendi</button>
+    <button type="button" data-feedback="duvidas">🤔 Ainda tenho dúvidas</button>
+  </div>`}
+`;
 
   if (!temporary) {
     div.querySelectorAll('.actions button').forEach(btn => {
@@ -706,10 +719,12 @@ async function sendText({ textOverride = null, source = 'text' } = {}) {
   }
   setStatus('Enviando sua mensagem para o coach…');
 
+
   const payload = {
     text,
     goal: settings.goal,
     level: settings.level,
+    moduleId: settings.moduleId, // <-- NOVO
     history: getHistoryForRequest(currentThreadId),
     feedbackSignals: getRecentFeedback()
   };
@@ -740,7 +755,8 @@ async function sendText({ textOverride = null, source = 'text' } = {}) {
         culturalTip: data.culturalTip,
         confidence: data.confidence,
         goal: data.goal,
-        level: data.level
+        level: data.level,
+        sources: data.sources || [] //<-- novo
       }
     };
     renderAssistantMessage(assistantMessage);
@@ -871,36 +887,20 @@ async function onStop() {
   }
 };
 
-audioRetryBtn.addEventListener('click', async () => {
-  hideAudioPreview();
-  await startRecording();
-});
 
 audioDiscardBtn.addEventListener('click', () => {
   hideAudioPreview();
   setStatus('Transcrição descartada. Grave outra vez quando quiser.');
 });
 
-sendBtn.addEventListener('click', () => sendText());
-textInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendText();
-  }
-});
-textInput.addEventListener('input', () => autoGrow(textInput));
+
 textInput.addEventListener('focus', () => chipsVisible(false));
-textInput.addEventListener('blur', () => {
-  const thread = threads[currentThreadId];
-  if (thread && thread.messages.length === 0) chipsVisible(true);
-});
 
 renameBtn.addEventListener('click', renameCurrentThread);
 favoriteBtn.addEventListener('click', toggleFavorite);
 newThreadBtn.addEventListener('click', newThread);
 newThreadBtnMobile.addEventListener('click', newThread);
 
-hamb?.addEventListener('click', () => sidebar.classList.toggle('open'));
 
 levelSelect?.addEventListener('change', () => {
   settings.level = levelSelect.value;
@@ -909,7 +909,20 @@ levelSelect?.addEventListener('change', () => {
 });
 clearHistoryBtn?.addEventListener('click', clearHistory);
 
+moduleSelect?.addEventListener('change', () => {
+  settings.moduleId = moduleSelect.value;
+  saveSettings(settings);
+  setStatus(`Módulo selecionado: ${settings.moduleId}`);
+});
+
 function bootstrap() {
+  if (moduleSelect) {
+  // se houver módulo salvo nas settings, aplica; senão usa o primeiro do select
+  const firstOption = moduleSelect.options[0]?.value || '';
+  moduleSelect.value = settings.moduleId || firstOption;
+  settings.moduleId = moduleSelect.value || '1 - Destravando para avancar';
+  saveSettings(settings);
+}
   if (levelSelect) levelSelect.value = settings.level;
   renderGoalTabs();
   currentThreadId = loadLastThreadId();
@@ -949,10 +962,6 @@ audioRetryBtn.addEventListener('click', async () => {
   await startRecording();
 });
 
-audioDiscardBtn.addEventListener('click', () => {
-  hideAudioPreview();
-  setStatus('Transcrição descartada. Grave outra vez quando quiser.');
-});
 
 sendBtn.addEventListener('click', () => sendText());
 textInput.addEventListener('keydown', (e) => {
@@ -962,16 +971,11 @@ textInput.addEventListener('keydown', (e) => {
   }
 });
 textInput.addEventListener('input', () => autoGrow(textInput));
-textInput.addEventListener('focus', () => chipsVisible(false));
 textInput.addEventListener('blur', () => {
   const thread = threads[currentThreadId];
   if (thread && thread.messages.length === 0) chipsVisible(true);
 });
 
-renameBtn.addEventListener('click', renameCurrentThread);
-favoriteBtn.addEventListener('click', toggleFavorite);
-newThreadBtn.addEventListener('click', newThread);
-newThreadBtnMobile.addEventListener('click', newThread);
 
 hamb?.addEventListener('click', () => sidebar.classList.toggle('open'));
 

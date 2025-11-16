@@ -1,5 +1,4 @@
 // backend/server.js
-import 'dotenv/config';
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -9,14 +8,26 @@ import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
-/* ---------- Boot ---------- */
+// __dirname em ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
-const PORT       = process.env.PORT || 3000;
 
-/* ---------- App ---------- */
+// carrega .env especificamente de backend/.env
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+// LOG para conferir (sem vazar a chave toda)
+console.log(
+  '🔑 OPENAI_API_KEY prefix:',
+  (process.env.OPENAI_API_KEY || '(nenhuma)').slice(0, 12) + '…'
+);
+
+// depois disso você cria o app e o cliente:
 const app = express();
+
+
+const PORT       = process.env.PORT || 3000;
 
 /* ---------- CORS (opcional por .env) ---------- */
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || '')
@@ -165,6 +176,8 @@ const upload = multer({
 /* ---------- Health ---------- */
 app.get('/health', (_, res) => res.json({ ok: true, ts: Date.now() }));
 
+
+
 /* ---------- Transcrição ---------- */
 app.post('/transcrever', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
@@ -283,11 +296,11 @@ ${context}
 
     // 5) Chamada ao modelo
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages,
-      temperature: 0.3,
-      response_format: { type: 'json_object' }
-    });
+  model: 'gpt-4o-mini',
+  messages,
+  temperature: 0.3
+  // sem response_format
+});
 
     const rawContent = completion.choices?.[0]?.message?.content || '{}';
     let data;

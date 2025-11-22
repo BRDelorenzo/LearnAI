@@ -340,6 +340,7 @@ const moduleSelect = document.getElementById('moduleSelect');
 
 let mediaRecorder, chunks = [], mime = '', audioContext, analyser, monitorInterval, rmsSmooth = 0, recordStartedAt = null, countdownTimer = null;
 let currentThreadId = null;
+let ttsAudio = null; // para controlar o áudio da resposta
 
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem('learnai-settings') || '{}'); } catch { return {}; }
@@ -607,20 +608,30 @@ function renderAssistantMessage(message, save = true, temporary = false) {
   ${Array.isArray(meta.extraSuggestions) && meta.extraSuggestions.length ? `<details><summary>Continue praticando</summary><ul>${meta.extraSuggestions.map(s => `<li>${formatText(s)}</li>`).join('')}</ul></details>` : ''}
   ${meta.culturalTip ? `<div><span class="tag"><span class="dot" style="background:${confidenceColor}"></span>${escapeHTML(meta.confidence ? `confiança ${meta.confidence}` : 'dica')}</span><br>${formatText(meta.culturalTip)}</div>` : ''}
   ${sourcesHtml}
-  ${temporary ? '' : `<div class="actions" role="group" aria-label="Feedback desta resposta">
+  ${temporary ? '' : `<div class="actions" role="group" aria-label="Ações desta resposta">
+    <button type="button" data-action="tts">🔊 Ouvir resposta</button>
     <button type="button" data-feedback="entendi">👍 Entendi</button>
     <button type="button" data-feedback="duvidas">🤔 Ainda tenho dúvidas</button>
   </div>`}
 `;
 
   if (!temporary) {
-    div.querySelectorAll('.actions button').forEach(btn => {
+    // Botões de feedback ("Entendi" / "Ainda tenho dúvidas")
+    div.querySelectorAll('.actions button[data-feedback]').forEach(btn => {
       btn.addEventListener('click', () => {
         registerFeedback(message.id, btn.dataset.feedback);
         btn.classList.add('active');
         setTimeout(() => btn.classList.remove('active'), 1200);
       });
     });
+
+    // Botão de TTS ("Ouvir resposta")
+    const ttsBtn = div.querySelector('.actions button[data-action="tts"]');
+    if (ttsBtn) {
+      ttsBtn.addEventListener('click', () => {
+        playTTSForMessage(message, ttsBtn);
+      });
+    }
   }
 
   chatEl.appendChild(div);
@@ -784,6 +795,59 @@ function registerFeedback(messageId, value) {
   feedbackLog.push({ id: messageId, value, ts: Date.now() });
   feedbackLog = feedbackLog.slice(-50);
   saveFeedbackLog(feedbackLog);
+}
+
+async function playTTSForMessage(message, btn) {
+  const text = (message.meta?.reply || message.text || '').trim();
+  if (!text) {
+    setStatus('Não há texto para ler em voz alta.');
+    return;
+  }
+
+  const originalLabel = btn.textContent;
+  try {
+    btn.disabled = true;
+    btn.textContent = '🔊 Gerando áudio…';
+    setStatus('Gerando áudio da resposta…');
+
+    const res = await fetch('/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Erro TTS: ${res.status} ${errText}`);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    // para não ficar vários áudios tocando
+    if (ttsAudio) {
+      ttsAudio.pause();
+      try { URL.revokeObjectURL(ttsAudio.src); } catch {}
+    }
+
+    ttsAudio = new Audio(url);
+    ttsAudio.play().catch(err => {
+      console.error(err);
+      setStatus('Não consegui reproduzir o áudio.');
+    });
+
+    ttsAudio.onended = () => {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    };
+
+    setStatus('Reproduzindo a resposta em inglês.');
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+    setStatus('Não consegui gerar o áudio da resposta.');
+  }
 }
 
 function pickMime() {

@@ -268,7 +268,7 @@ Você é o Coach LearnAI. Responda com base no material do módulo quando dispon
 - Nível do aluno: ${level}
 - Objetivo: ${goal}
 - Módulo: ${moduleId}
-- Quando usar o material recuperado (abaixo), cite-o como [#n] sem links.
+- Quando usar o material recuperado (abaixo), cite-o como [#n] com links.
 - Traga explicação curta, exemplos e uma pergunta de continuação.
 `.trim();
 
@@ -335,6 +335,43 @@ ${context}
     });
   }
 });
+
+/* ---------- TTS (texto -> fala) ---------- */
+app.post('/tts', async (req, res) => {
+  try {
+    const { text } = req.body || {};
+
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ error: "Campo 'text' é obrigatório." });
+    }
+
+    // 1) Chama o modelo de TTS
+    const speechResponse = await openai.audio.speech.create({
+      model: 'gpt-4o-mini-tts', // ou o modelo que você tiver habilitado
+      voice: 'alloy',
+      format: 'mp3',
+      input: text
+    });
+
+    // 2) Converte para Buffer
+    const audioBuffer = Buffer.from(await speechResponse.arrayBuffer());
+
+    // 3) Envia o áudio pro front
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Length', audioBuffer.length);
+    res.send(audioBuffer);
+  } catch (e) {
+    const errInfo = normalizeOpenAIError(e);
+    console.error('❌ Erro no TTS:', errInfo.safeDetail);
+    res.status(errInfo.httpStatus).json({
+      error: 'falha_no_tts',
+      code: errInfo.code,
+      detail: errInfo.safeDetail,
+      message: 'Não foi possível gerar o áudio da resposta agora.'
+    });
+  }
+});
+
 
 /* ---------- Fallback SPA ---------- */
 app.use((_req, res) => {

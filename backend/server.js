@@ -269,7 +269,7 @@ Você é o Coach LearnAI. Responda com base no material do módulo quando dispon
 - Objetivo: ${goal}
 - Módulo: ${moduleId}
 - Quando usar o material recuperado (abaixo), cite-o como [#n] com links.
-- Traga explicação curta, exemplos e uma pergunta de continuação.
+- Traga explicação curta, informal e descontraida, exemplos baseado no material do modulo e uma pergunta de continuação.
 `.trim();
 
     const userPrompt = `

@@ -308,6 +308,7 @@ const GOAL_SUGGESTIONS = {
   ]
 };
 const WELCOME_MESSAGE = `Olá! Eu sou o seu coach pessoal de inglês. Escolha um objetivo na parte superior, explore as sugestões abaixo ou envie uma pergunta. Vou responder com explicações, tradução e próximos passos para o seu estudo.`;
+const REQUEST_TIMEOUT_MS = 45000;
 
 const chatEl = document.getElementById('chat');
 const textInput = document.getElementById('textInput');
@@ -381,6 +382,21 @@ if (!GOAL_SUGGESTIONS[settings.goal]) {
 
 function setStatus(msg) {
   statusEl.textContent = msg;
+}
+
+async function requestWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('O servidor demorou para responder. Tente novamente.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function autoGrow(el) {
@@ -742,7 +758,7 @@ async function sendText({ textOverride = null, source = 'text' } = {}) {
   };
 
   try {
-    const res = await fetch('/chat', {
+    const res = await requestWithTimeout('/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -811,7 +827,7 @@ async function playTTSForMessage(message, btn) {
     btn.textContent = '🔊 Gerando áudio…';
     setStatus('Gerando áudio da resposta…');
 
-    const res = await fetch('/tts', {
+    const res = await requestWithTimeout('/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text })
@@ -940,7 +956,7 @@ async function onStop() {
   const durationSec = recordStartedAt ? Math.max(1, Math.round((Date.now() - recordStartedAt) / 1000)) : null;
   setStatus('Transcrevendo seu áudio…');
   try {
-    const res = await fetch('/transcrever', { method: 'POST', body: form });
+    const res = await requestWithTimeout('/transcrever', { method: 'POST', body: form });
     if (!res.ok) throw new Error(`Erro ${res.status}`);
     const data = await res.json();
     const text = data.transcricao || data.transcript || '';

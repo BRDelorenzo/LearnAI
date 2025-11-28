@@ -1,33 +1,52 @@
 // backend/server.js
-import express from 'express';
-import multer from 'multer';
+import compression from 'compression';
 import cors from 'cors';
-import { OpenAI } from 'openai';
-import fs from 'fs';
-import path from 'path';
-import ffmpeg from 'fluent-ffmpeg';
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import express from 'express';
+import rateLimit from 'express-rate-limit';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import fs from 'fs';
+import ffmpeg from 'fluent-ffmpeg';
+import helmet from 'helmet';
+import multer from 'multer';
+import { OpenAI } from 'openai';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // __dirname em ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
+const OPENAI_TIMEOUT_MS = Number.parseInt(process.env.OPENAI_TIMEOUT_MS || '45000', 10);
+const AUDIO_MIME_WHITELIST = [
+  'audio/',
+  'video/webm',
+  'video/mp4',
+  'video/ogg'
+];
+const RATE_LIMIT_MAX = Number.parseInt(process.env.RATE_LIMIT_MAX || '300', 10);
+
 // carrega .env especificamente de backend/.env
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// LOG para conferir (sem vazar a chave toda)
-console.log(
-  '🔑 OPENAI_API_KEY prefix:',
-  (process.env.OPENAI_API_KEY || '(nenhuma)').slice(0, 12) + '…'
-);
+console.log('🔑 OPENAI_API_KEY configurada?', Boolean(process.env.OPENAI_API_KEY));
 
 // depois disso você cria o app e o cliente:
 const app = express();
 
 
 const PORT       = process.env.PORT || 3000;
+
+/* ---------- Segurança e performance ---------- */
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use(limiter);
+app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use(compression());
 
 /* ---------- CORS (opcional por .env) ---------- */
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || '')
@@ -58,7 +77,7 @@ const openaiApiKey = (process.env.OPENAI_API_KEY || '').trim();
 if (!openaiApiKey) {
   console.warn('⚠️  OPENAI_API_KEY ausente. As rotas que dependem da OpenAI falharão.');
 }
-const openai = new OpenAI({ apiKey: openaiApiKey });
+const openai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey, timeout: OPENAI_TIMEOUT_MS }) : null;
 
 /* ---------- FFmpeg ---------- */
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
@@ -69,6 +88,9 @@ function redactKey(str) {
   return str.replace(/\b(sk-[A-Za-z0-9]{6})[A-Za-z0-9_-]{10,}\b/g, '$1…');
 }
 function normalizeOpenAIError(error) {
+  if (error?.name === 'AbortError') {
+    return { code: 'request_timeout', httpStatus: 504, safeDetail: 'Tempo limite da requisição atingido.' };
+  }
   const status     = error?.response?.status || error?.status || 500;
   const rawDetail  = error?.response?.data || error?.message || 'erro desconhecido';
   const serialized = typeof rawDetail === 'string' ? rawDetail : JSON.stringify(rawDetail);
@@ -84,10 +106,37 @@ function buildClientMessage(code, context) {
   if (code === 'invalid_api_key') {
     return 'Sua chave da OpenAI parece inválida ou expirada. Atualize a variável OPENAI_API_KEY e reinicie o backend.';
   }
+  if (code === 'request_timeout') {
+    return 'O serviço demorou para responder. Tente novamente em alguns instantes.';
+  }
   if (context === 'transcription') {
     return 'Não foi possível transcrever o áudio agora. Tente novamente em instantes.';
   }
   return 'Não foi possível falar com o coach agora. Tente novamente em alguns instantes.';
+}
+
+async function safeUnlink(filePath) {
+  if (!filePath) return;
+  try { await fs.promises.unlink(filePath); } catch {}
+}
+
+async function callWithTimeout(action, timeoutMs = OPENAI_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await action(controller.signal);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function ensureOpenAI(res) {
+  if (openai) return true;
+  res.status(503).json({
+    error: 'openai_not_configured',
+    message: 'OPENAI_API_KEY não está configurada no backend.'
+  });
+  return false;
 }
 
 /* ---------- KB (RAG) ---------- */
@@ -145,10 +194,12 @@ async function retrieveModuleChunks({ query, moduleId, topK = 6 }) {
   }
 
   // embedding da consulta
-  const embRes = await openai.embeddings.create({
+  if (!openai) throw new Error('OpenAI client indisponível');
+  const embRes = await callWithTimeout(signal => openai.embeddings.create({
     model: 'text-embedding-3-large',
-    input: query
-  });
+    input: query,
+    signal
+  }));
   const q = embRes.data[0].embedding;
 
   // rank
@@ -180,12 +231,23 @@ app.get('/health', (_, res) => res.json({ ok: true, ts: Date.now() }));
 
 /* ---------- Transcrição ---------- */
 app.post('/transcrever', upload.single('file'), async (req, res) => {
+  if (!ensureOpenAI(res)) return;
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
 
   const originalPath = req.file.path;
   const wavPath = path.join(uploadsDir, `${req.file.filename}.wav`);
 
   console.log(`📥 Recebido: ${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes)`);
+
+  const mime = req.file.mimetype || '';
+  const isAllowed = AUDIO_MIME_WHITELIST.some(prefix => mime.startsWith(prefix));
+  if (!isAllowed) {
+    await safeUnlink(originalPath);
+    return res.status(400).json({
+      error: 'tipo_invalido',
+      message: 'Envie um arquivo de áudio válido (wav, webm, m4a, ogg).'
+    });
+  }
 
   try {
     await new Promise((resolve, reject) => {
@@ -202,10 +264,10 @@ app.post('/transcrever', upload.single('file'), async (req, res) => {
     });
   } catch (e) {
     console.error('❌ Falha na conversão:', e);
-    try { fs.unlinkSync(originalPath); } catch {}
+    await safeUnlink(originalPath);
     return res.status(500).json({ error: 'Falha na conversão de áudio.' });
   } finally {
-    try { fs.unlinkSync(originalPath); } catch {}
+    await safeUnlink(originalPath);
   }
 
   if (!fs.existsSync(wavPath)) {
@@ -213,11 +275,12 @@ app.post('/transcrever', upload.single('file'), async (req, res) => {
   }
 
   try {
-    const result = await openai.audio.transcriptions.create({
+    const result = await callWithTimeout(signal => openai.audio.transcriptions.create({
       file: fs.createReadStream(wavPath),
       model: 'gpt-4o-mini-transcribe',
+      signal
       // language: 'pt',
-    });
+    }));
     console.log('📝 Transcrição:', result.text);
     res.json({ transcricao: result.text });
   } catch (e) {
@@ -229,13 +292,14 @@ app.post('/transcrever', upload.single('file'), async (req, res) => {
       message: buildClientMessage(errInfo.code, 'transcription')
     });
   } finally {
-    try { fs.unlinkSync(wavPath); } catch {}
+    await safeUnlink(wavPath);
   }
 });
 
 /* ---------- Chat (RAG por módulo) ---------- */
 app.post('/chat', async (req, res) => {
   try {
+    if (!ensureOpenAI(res)) return;
     const {
       text,
       level = 'intermediario',
@@ -405,12 +469,13 @@ ${context}
     ];
 
     // 5) Chamada ao modelo
-    const completion = await openai.chat.completions.create({
-  model: 'gpt-4o-mini',
-  messages,
-  temperature: 0.3
-  // sem response_format
-});
+    const completion = await callWithTimeout(signal => openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      temperature: 0.3,
+      signal
+      // sem response_format
+    }));
 
     const rawContent = completion.choices?.[0]?.message?.content || '{}';
     let data;
@@ -441,7 +506,8 @@ ${context}
       error: 'falha_no_chat_rag',
       code: errInfo.code,
       detail: errInfo.safeDetail,
-      hint: 'Verifique o kb_index.json e a OPENAI_API_KEY.'
+      hint: 'Verifique o kb_index.json e a OPENAI_API_KEY.',
+      message: buildClientMessage(errInfo.code)
     });
   }
 });
@@ -449,6 +515,7 @@ ${context}
 /* ---------- TTS (texto -> fala) ---------- */
 app.post('/tts', async (req, res) => {
   try {
+    if (!ensureOpenAI(res)) return;
     const { text } = req.body || {};
 
     if (!text || typeof text !== 'string') {
@@ -456,12 +523,13 @@ app.post('/tts', async (req, res) => {
     }
 
     // 1) Chama o modelo de TTS
-    const speechResponse = await openai.audio.speech.create({
+    const speechResponse = await callWithTimeout(signal => openai.audio.speech.create({
       model: 'gpt-4o-mini-tts', // ou o modelo que você tiver habilitado
       voice: 'alloy',
       format: 'mp3',
-      input: text
-    });
+      input: text,
+      signal
+    }));
 
     // 2) Converte para Buffer
     const audioBuffer = Buffer.from(await speechResponse.arrayBuffer());

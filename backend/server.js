@@ -45,7 +45,12 @@ const limiter = rateLimit({
   legacyHeaders: false
 });
 app.use(limiter);
-app.use(helmet({ crossOriginResourcePolicy: false }));
+//app.use(helmet({ crossOriginResourcePolicy: false }));
+
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: false  // ⬅ desliga a CSP pra permitir <script> inline
+}));
 app.use(compression());
 
 /* ---------- CORS (opcional por .env) ---------- */
@@ -120,15 +125,6 @@ async function safeUnlink(filePath) {
   try { await fs.promises.unlink(filePath); } catch {}
 }
 
-async function callWithTimeout(action, timeoutMs = OPENAI_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await action(controller.signal);
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 function ensureOpenAI(res) {
   if (openai) return true;
@@ -195,11 +191,10 @@ async function retrieveModuleChunks({ query, moduleId, topK = 6 }) {
 
   // embedding da consulta
   if (!openai) throw new Error('OpenAI client indisponível');
-  const embRes = await callWithTimeout(signal => openai.embeddings.create({
-    model: 'text-embedding-3-large',
-    input: query,
-    signal
-  }));
+  const embRes = await openai.embeddings.create({
+  model: 'text-embedding-3-large',
+  input: query
+});
   const q = embRes.data[0].embedding;
 
   // rank
@@ -275,12 +270,11 @@ app.post('/transcrever', upload.single('file'), async (req, res) => {
   }
 
   try {
-    const result = await callWithTimeout(signal => openai.audio.transcriptions.create({
-      file: fs.createReadStream(wavPath),
-      model: 'gpt-4o-mini-transcribe',
-      signal
-      // language: 'pt',
-    }));
+    const result = await openai.audio.transcriptions.create({
+  file: fs.createReadStream(wavPath),
+  model: 'gpt-4o-mini-transcribe'
+  // language: 'pt',
+});
     console.log('📝 Transcrição:', result.text);
     res.json({ transcricao: result.text });
   } catch (e) {
@@ -342,23 +336,23 @@ Antes de gerar qualquer resposta, você DEVE executar mentalmente este processo:
 
 1. Identificar o TEMA ou ASSUNTO da pergunta do usuário.
 2. Procurar no KB (material do módulo) qualquer exemplo, frase, diálogo ou estrutura
-   que esteja relacionada a esse tema, MESMO QUE:
+   que esteja relacionada ao tema mencionado.
+   MESMO QUE:
    - o usuário não mencione nenhuma palavra específica do exemplo,
-   - o usuário não cite "married", "been", "for", "since", etc.,
    - o nome das frases seja diferente,
    - o usuário esteja falando de forma geral.
 
 3. SE existir qualquer exemplo relacionado ao tema:
-   → VOCÊ DEVE **anular completamente seu conhecimento interno**.
-   → PROIBIDO usar qualquer exemplo aprendido durante seu treinamento básico.
-   → PROIBIDO usar exemplos clássicos (como "I’ve eaten...", “I’ve forgotten...”, etc.).
-   → PROIBIDO inferir novos exemplos com base no idioma.
-   → A ÚNICA fonte de exemplos são os exemplos do KB.
+   - VOCÊ DEVE **anular completamente seu conhecimento interno**.
+   - PROIBIDO usar qualquer exemplo aprendido durante seu treinamento básico.
+   - PROIBIDO usar exemplos clássicos ou genéricos.
+   - PROIBIDO inferir novos exemplos com base no idioma.
+   - A ÚNICA fonte de exemplos são os exemplos do kb_index.json.
 
 4. SE o tema existir no KB:
-   → VOCÊ NÃO PODE inventar exemplos novos.
-   → VOCÊ NÃO PODE adaptar, melhorar ou recriar frases do KB.
-   → VOCÊ DEVE copiar as frases exatamente.
+   - VOCÊ NÃO PODE inventar exemplos novos.
+   - VOCÊ NÃO PODE adaptar, melhorar ou recriar frases do KB.
+   - VOCÊ DEVE copiar as frases exatamente.
 
 5. Só é permitido criar um exemplo novo se — e somente se — o tema NÃO existir no KB.
 
@@ -398,7 +392,7 @@ Se o usuário falar em inglês, iniciar um diálogo ou parecer estar praticando 
 Durante o modo conversa:
 - Responda como em um diálogo real, natural e curto.
 - Continue a conversa como se estivesse em chamada de vídeo.
-- NO FINAL da resposta, entregue uma seção chamada **"coachFeedback"** com:
+- NO FINAL da resposta, entregue uma seção chamada "coachFeedback" com:
   - 1 correção suave
   - 1 dica rápida
   - 1 explicação simples
@@ -412,9 +406,6 @@ A resposta DEVE SEMPRE seguir exatamente este JSON:
 {
   "reply": "...",
   "translation": "...",
-  "Extra Example": [
-    { "term": "...", "translation": "...", "tip": "..." }
-  ],
   "coachFeedback": {
       "correction": "...",
       "tip": "...",
@@ -425,10 +416,8 @@ A resposta DEVE SEMPRE seguir exatamente este JSON:
 
 Obrigatório:
 - "reply": mensagem principal no JEITO FRANCIS, divertida, acolhedora e baseada nos EXEMPLOS DO MÓDULO.
-- "translation": tradução completa da reply.
-- "Extra Example": pelo menos 2 exemplos extras.
+- "translation": tradução para portugues somente as palavras em inglês da reply.
 - "coachFeedback": só usar se o aluno escreveu algo; se o usuário não praticou, pode deixar vazio ou nulo.
-- Sempre que usar material do módulo que vier no contexto, cite como [#n].
 
 -----------------------------------
 5. FUNÇÃO PRINCIPAL DO AGENTE
@@ -453,7 +442,7 @@ ${text}
 HISTÓRICO RECENTE:
 ${(Array.isArray(history) ? history.slice(-6) : []).map(h => `- ${h.role}: ${h.text}`).join('\n') || '(vazio)'}
 
-CONTEXTO DO MÓDULO (cite [n] ao usar):
+CONTEXTO DO MÓDULO:
 ${context}
 `.trim();
 
@@ -469,13 +458,12 @@ ${context}
     ];
 
     // 5) Chamada ao modelo
-    const completion = await callWithTimeout(signal => openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages,
-      temperature: 0.3,
-      signal
-      // sem response_format
-    }));
+    const completion = await openai.chat.completions.create({
+  model: 'gpt-4o-mini',
+  messages,
+  temperature: 0.3
+  // sem response_format
+});
 
     const rawContent = completion.choices?.[0]?.message?.content || '{}';
     let data;
@@ -523,13 +511,12 @@ app.post('/tts', async (req, res) => {
     }
 
     // 1) Chama o modelo de TTS
-    const speechResponse = await callWithTimeout(signal => openai.audio.speech.create({
-      model: 'gpt-4o-mini-tts', // ou o modelo que você tiver habilitado
-      voice: 'alloy',
-      format: 'mp3',
-      input: text,
-      signal
-    }));
+const speechResponse = await openai.audio.speech.create({
+  model: 'gpt-4o-mini-tts', // ou o modelo que você tiver habilitado
+  voice: 'alloy',
+  format: 'mp3',
+  input: text
+});
 
     // 2) Converte para Buffer
     const audioBuffer = Buffer.from(await speechResponse.arrayBuffer());

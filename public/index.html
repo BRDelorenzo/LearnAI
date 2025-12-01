@@ -6,194 +6,1067 @@
 <title>LearnAI</title>
 <style>
   :root {
-    --bg: #0b0b0d;
-    --panel: #111114;
-    --muted: #9aa0a6;
-    --text: #e8eaed;
-    --chip: #1a1b1f;
-    --chipText: #e8eaed;
-    --primary: #6d6bf9;
-    --accent: #22c55e;
-    --danger: #ef4444;
-    --border: #24252a;
-    --positive: #22c55e;
-    --warning: #fbbf24;
+    /* Paleta baseada no logo "inglês na boca" */
+    --bg: #f5f7fb;              /* fundo geral bem claro */
+    --panel: #ffffff;           /* cartões/branco */
+    --muted: #6b7280;           /* cinza de texto secundário */
+    --text: #111827;            /* texto principal bem escuro */
+    --chip: #eef2ff;            /* fundo de chips/sugestões */
+    --chipText: #111827;
+
+    --primary: #0057ff;         /* azul do logo (principal) */
+    --accent: #e30613;          /* vermelho do logo (destaques) */
+    --danger: #e30613;
+    --border: #e5e7eb;
+    --positive: #16a34a;
+    --warning: #f97316;
   }
+
   * { box-sizing: border-box; }
+
   body {
     margin: 0;
-    background: var(--bg);
+    background: radial-gradient(circle at top left, #ffffff, var(--bg));
     color: var(--text);
     font: 16px "Inter", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial;
   }
+
   button, select, textarea { font: inherit; }
-  a { color: inherit; }
-  .app { display: grid; grid-template-columns: 290px 1fr; min-height: 100dvh; }
+  a { color: inherit; text-decoration: none; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 290px 1fr;
+    min-height: 100dvh;
+  }
 
   /* Sidebar */
   .sidebar {
-    background: #0f1013;
+    background: linear-gradient(180deg, #ffffff 0%, #f3f4ff 45%, #eef2ff 100%);
     border-right: 1px solid var(--border);
-    padding: 16px;
+    padding: 16px 16px 20px;
     display: flex;
     flex-direction: column;
     gap: 16px;
   }
-  .brand { display: flex; align-items: center; gap: 10px; }
-  .brand .logo { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg,#7c3aed,#22d3ee); display: inline-block; }
-  .brand strong { font-weight: 600; font-size: 1.1rem; }
-  .new-thread { border: 1px dashed var(--border); background: transparent; color: var(--text); padding: 10px 14px; border-radius: 12px; cursor: pointer; transition: background .2s; text-align: left; }
-  .new-thread:hover { background: #15161a; }
-  .progress-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: grid; gap: 8px; }
-  .progress-card h3 { margin: 0; font-size: 1rem; }
-  .progress-card ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
-  .progress-card li { font-size: .9rem; color: var(--muted); }
-  .hist-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .hist-title { opacity: .85; font-size: .9rem; }
-  .clear-history {
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: #15161a;
-    color: var(--muted);
-    padding: 6px 10px;
-    cursor: pointer;
-    font-size: .8rem;
-    display: inline-flex;
+
+  .brand {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    transition: border .2s, background .2s, color .2s;
+    gap: 10px;
   }
-  .clear-history:hover { border-color: var(--danger); color: var(--danger); }
-  .hist { overflow: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; }
-  .hist button { width: 100%; text-align: left; background: transparent; border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: border .2s, background .2s; }
-  .hist button:hover { background: #15161a; }
-  .hist button.active { border-color: var(--primary); }
-  .hist button .meta { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); }
-  .hist button .meta span { display: flex; align-items: center; gap: 4px; }
-  .hist button .title { display: flex; justify-content: space-between; gap: 12px; font-weight: 500; }
-  .hist .empty { color: var(--muted); font-size: .9rem; padding: 10px; }
 
-  /* Main */
-  .main { display: grid; grid-template-rows: auto 1fr auto; min-height: 100dvh; position: relative; }
-  .topbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; position: sticky; top: 0; background: linear-gradient(#0b0b0de6,#0b0b0de6); border-bottom: 1px solid var(--border); z-index: 10; }
-  .hamb { display: none; }
-  .hamb, .pill, .btn { border-radius: 12px; border: 1px solid var(--border); background: #14151a; color: var(--text); cursor: pointer; transition: background .2s, border .2s; }
-  .hamb { width: 42px; height: 42px; display: inline-grid; place-items: center; }
-  .pill { padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; }
-  .pill[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-  .settings { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .settings label { font-size: .85rem; color: var(--muted); display: grid; gap: 4px; }
-  .settings select { border-radius: 10px; border: 1px solid var(--border); background: #14151a; color: var(--text); padding: 8px 10px; }
-  .session-meta { display: flex; gap: 8px; align-items: center; flex: 1; }
-  .session-meta span { font-weight: 500; }
+  .brand-logo {
+    height: 44px;
+    width: auto;
+    display: block;
+  }
 
-  .goal-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .goal-tab {
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: #14151a;
+  .brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .brand-text strong {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.02em;
+  }
+
+  .brand-text span {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
     color: var(--muted);
-    padding: 8px 14px;
-    cursor: pointer;
-    font-size: .85rem;
-    flex: 0 0 auto;
-    transition: background .2s, border .2s, color .2s, transform .2s;
   }
-  .goal-tab:hover { transform: translateY(-1px); background: #18191f; }
-  .goal-tab.active {
-    border-color: var(--primary);
-    color: #fff;
-    background: linear-gradient(135deg, rgba(109,107,249,.28), rgba(109,107,249,.1));
-    box-shadow: 0 6px 14px rgba(28,27,62,.25);
+
+  .new-thread {
+    border-radius: 999px;
+    border: 1px dashed rgba(0, 87, 255, 0.35);
+    background: rgba(0, 87, 255, 0.04);
+    color: var(--primary);
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background .18s ease, border .18s ease, transform .12s ease;
+    text-align: left;
+  }
+
+  .new-thread:hover {
+    background: rgba(0, 87, 255, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .progress-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 14px;
+    display: grid;
+    gap: 8px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.04);
+  }
+
+  .progress-card h3 {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  .progress-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 4px;
+  }
+
+  .progress-card li {
+    font-size: .85rem;
+    color: var(--muted);
+  }
+
+  .progress-card strong {
+    color: var(--primary);
   }
 
   .ideas-card {
-    background: linear-gradient(135deg, rgba(125,126,255,.08), rgba(34,197,94,.06));
-    border: 1px solid rgba(109,107,249,.25);
-    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(0,87,255,.06), rgba(227,6,19,.04));
+    border: 1px solid rgba(0,87,255,.18);
+    border-radius: 18px;
     padding: 16px;
     display: grid;
     gap: 10px;
   }
-  .ideas-card h3 { margin: 0; font-size: .95rem; color: #cbd5ff; }
-  .ideas-card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: rgba(232,234,237,.85); font-size: .85rem; }
+
+  .ideas-card h3 {
+    margin: 0;
+    font-size: .9rem;
+    color: #1d4ed8;
+  }
+
+  .ideas-card ul {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: .85rem;
+  }
 
 
-  .chat { padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow: auto; scroll-behavior: smooth; }
+  
+
+  .hist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .hist-title {
+    opacity: .9;
+    font-size: .9rem;
+    font-weight: 500;
+  }
+
+  .clear-history {
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #f9fafb;
+    color: var(--muted);
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: .75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: border .16s, background .16s, color .16s, transform .12s;
+  }
+
+  .clear-history:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: #fef2f2;
+    transform: translateY(-1px);
+  }
+
+  /* Lista de conversas no histórico */
+.hist {
+  overflow: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Cada linha do histórico: card + botão de excluir */
+.hist-item {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+/* Botão principal que abre a conversa (card) */
+.hist .hist-open {
+  flex: 1 1 auto;
+  text-align: left;
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border .16s,
+              background .16s,
+              box-shadow .16s,
+              transform .12s;
+}
+
+.hist .hist-open:hover {
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.hist .hist-open.active {
+  border-color: var(--primary);
+  background: #eef2ff;
+}
+
+.hist .hist-open .meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: .75rem;
+  color: var(--muted);
+}
+
+.hist .hist-open .meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hist .hist-open .title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 500;
+}
+
+/* Botão de excluir pequenininho ao lado do card */
+.hist-item .hist-delete {
+  flex: 0 0 auto;
+  width: auto;
+  border-radius: 999px;
+  border: 1px solid var(--danger);
+  background: #fef2f2;
+  color: var(--danger);
+  padding: 4px 10px;
+  font-size: .75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: background .15s, border .15s,
+              transform .12s, box-shadow .15s;
+}
+
+.hist-item .hist-delete:hover {
+  background: #fee2e2;
+  border-color: var(--danger);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+  transform: translateY(-1px);
+}
+
+
+  .hist button:hover {
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    transform: translateY(-1px);
+  }
+
+  .hist button.active {
+    border-color: var(--primary);
+    background: #eef2ff;
+  }
+
+  .hist button .meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: .75rem;
+    color: var(--muted);
+  }
+
+  .hist button .meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .hist button .title {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-weight: 500;
+  }
+
+  .hist .empty {
+    color: var(--muted);
+    font-size: .9rem;
+    padding: 10px;
+  }
+
+  /* Main */
+  .main {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-height: 100dvh;
+    position: relative;
+  }
+
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    position: sticky;
+    top: 0;
+    background: linear-gradient(180deg, rgba(245,247,251,0.96), rgba(245,247,251,0.98));
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+    backdrop-filter: blur(10px);
+  }
+
+  .hamb {
+    display: none;
+  }
+
+  .hamb, .pill, .btn {
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #f9fafb;
+    color: var(--text);
+    cursor: pointer;
+    transition: background .16s, border .16s, box-shadow .16s, transform .12s;
+  }
+
+  .hamb {
+    width: 40px;
+    height: 40px;
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .pill {
+    padding: 8px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .85rem;
+  }
+
+  .pill[aria-pressed="true"] {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: #fef2f2;
+  }
+
+  .hamb:hover, .pill:hover, .btn:hover {
+    background: #ffffff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+    transform: translateY(-1px);
+  }
+
+  .settings {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .settings label {
+    font-size: .8rem;
+    color: var(--muted);
+    display: grid;
+    gap: 4px;
+  }
+
+  .settings select {
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: var(--text);
+    padding: 6px 12px;
+    font-size: .85rem;
+  }
+
+  .session-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex: 1;
+  }
+
+  .session-meta span {
+    font-weight: 500;
+  }
+
+  /* Goal tabs – se quiser esconder, basta colocar display:none aqui */
+  .goal-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .goal-tabs {
+  display: none !important;
+}
+
+  .goal-tab {
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #4b5563;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: .8rem;
+    flex: 0 0 auto;
+    transition: background .16s, border .16s, color .16s, transform .12s, box-shadow .16s;
+  }
+
+  .goal-tab:hover {
+    transform: translateY(-1px);
+    background: #ffffff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  }
+
+  .goal-tab.active {
+    border-color: var(--primary);
+    color: #ffffff;
+    background: linear-gradient(135deg, #0057ff, #2563eb);
+    box-shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
+  }
+
+  .chat {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: auto;
+    scroll-behavior: smooth;
+    background: radial-gradient(circle at top left, #ffffff 0, #f5f7fb 55%, #eef2ff 100%);
+  }
+
   .chat:focus { outline: none; }
-  .msg { max-width: 760px; border: 1px solid var(--border); background: var(--panel); border-radius: 18px; padding: 16px 18px; line-height: 1.5; display: grid; gap: 12px; position: relative; }
-  .msg.bot { align-self: flex-start; }
-  .msg.me { align-self: flex-end; border-color: var(--primary); background: linear-gradient(135deg, rgba(109,107,249,.24), rgba(109,107,249,.08)); color: #f5f5ff; }
-  .msg .label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  .msg .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .msg .actions button { border-radius: 10px; border: 1px solid var(--border); background: #1b1c21; color: var(--text); padding: 6px 10px; cursor: pointer; font-size: .85rem; }
-  .msg .actions button.active { border-color: var(--accent); color: var(--accent); }
-  .msg .translation { background: rgba(109,107,249,.08); border-radius: 12px; padding: 10px 12px; }
-  .msg details { background: #15161a; border-radius: 12px; padding: 10px 12px; }
-  .msg details summary { cursor: pointer; font-weight: 500; }
+
+  .msg {
+    max-width: 760px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 18px;
+    padding: 14px 16px;
+    line-height: 1.5;
+    display: grid;
+    gap: 10px;
+    position: relative;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+  }
+
+  .msg.bot {
+    align-self: flex-start;
+  }
+
+  .msg.me {
+    align-self: flex-end;
+    border-color: rgba(0,87,255,0.35);
+    background: linear-gradient(135deg, #0057ff, #2563eb);
+    color: #f9fafb;
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.45);
+  }
+
+  .msg.me .label,
+  .msg.me details,
+  .msg.me details summary {
+    color: #e5e7eb;
+  }
+
+  .msg .label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--muted);
+  }
+
+  .msg .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .msg .actions button {
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #f9fafb;
+    color: var(--text);
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: .8rem;
+    transition: background .16s, border .16s, transform .12s, box-shadow .16s;
+  }
+
+  .msg .actions button:hover {
+    background: #ffffff;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+    transform: translateY(-1px);
+  }
+
+  .msg .actions button.active {
+    border-color: var(--positive);
+    background: #ecfdf3;
+    color: #166534;
+  }
+
+  .msg .translation {
+    background: #eff6ff;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: .9rem;
+  }
+
+  .msg details {
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: .9rem;
+  }
+
+  .msg details summary {
+    cursor: pointer;
+    font-weight: 500;
+  }
+
   .msg ul { margin: 8px 0 0 16px; }
   .msg ul li { margin-bottom: 4px; }
-  .msg .tag { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
-  .msg .tag .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
-  .chips { position: sticky; bottom: 120px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding: 8px 18px; opacity: 1; transition: opacity .2s, transform .2s; }
-  .chips.hidden { opacity: 0; pointer-events: none; transform: translateY(10px); }
-  .chip { background: var(--chip); color: var(--chipText); border: 1px solid var(--border); border-radius: 16px; padding: 12px 14px; min-width: 180px; max-width: 320px; display: grid; gap: 4px; cursor: pointer; }
+  .msg .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+  }
+
+  .msg .tag .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .chips {
+    position: sticky;
+    bottom: 120px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 8px 18px;
+    opacity: 1;
+    transition: opacity .16s, transform .16s;
+  }
+
+  .chips.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px);
+  }
+
+  .chip {
+    background: var(--chip);
+    color: var(--chipText);
+    border: 1px solid rgba(0,87,255,0.20);
+    border-radius: 16px;
+    padding: 10px 14px;
+    min-width: 200px;
+    max-width: 320px;
+    display: grid;
+    gap: 4px;
+    cursor: pointer;
+    font-size: .9rem;
+    text-align: left;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    transition: transform .12s, box-shadow .16s, background .16s;
+  }
+
   .chip strong { font-size: .95rem; }
   .chip span { font-size: .85rem; color: var(--muted); }
 
-  .composer-wrap { position: sticky; bottom: 0; background: linear-gradient(180deg, transparent, #0b0b0d 40% 100%), #0b0b0d; padding: 12px 16px; border-top: 1px solid var(--border); }
-  .composer { max-width: 920px; margin: 0 auto; display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; }
-  .btn { height: 48px; min-width: 48px; display: inline-grid; place-items: center; padding: 0 14px; }
-  .btn:hover, .pill:hover, .hamb:hover { background: #17181d; }
-  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-  .btn.ghost { background: transparent; }
-  .input { height: 48px; border-radius: 14px; border: 1px solid var(--border); background: #14151a; color: var(--text); padding: 12px 14px; width: 100%; resize: none; line-height: 1.4; }
-  .mic { position: relative; overflow: hidden; }
-  .mic.rec { outline: 2px solid var(--accent); box-shadow: 0 0 0 4px #22c55e1f; }
-  .vu { position: absolute; inset: 0; border-radius: 14px; pointer-events: none; }
-  .vu .fill { position: absolute; left: 0; bottom: 0; height: 100%; width: 0%; background: linear-gradient(90deg,#60a5fa,#22c55e); opacity: .25; transition: width .1s linear; }
-  .status { max-width: 920px; margin: 6px auto 0; color: var(--muted); font-size: .9rem; padding: 0 4px; }
+  .chip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+    background: #e0e7ff;
+  }
+
+  .composer-wrap {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(180deg, transparent, #f5f7fb 45%, #f5f7fb 100%);
+    padding: 12px 16px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .composer {
+    max-width: 920px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn {
+    height: 44px;
+    min-width: 44px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 14px;
+  }
+
+  .btn.primary {
+    background: linear-gradient(135deg, #0057ff, #2563eb);
+    border-color: #1d4ed8;
+    color: #ffffff;
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.45);
+  }
+
+  .btn.primary:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  }
+
+  .btn.ghost {
+    background: transparent;
+  }
+
+  .input {
+    height: 44px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #f9fafb;
+    color: var(--text);
+    padding: 10px 14px;
+    width: 100%;
+    resize: none;
+    line-height: 1.4;
+    font-size: .95rem;
+  }
+
+  .input:focus {
+    outline: 2px solid rgba(0,87,255,0.25);
+    outline-offset: 2px;
+    background: #ffffff;
+  }
+
+  .mic {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mic.rec {
+    outline: 2px solid var(--accent);
+    box-shadow: 0 0 0 4px rgba(227,6,19,0.16);
+  }
+
+  .vu {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .vu .fill {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #60a5fa, #22c55e);
+    opacity: .25;
+    transition: width .1s linear;
+  }
+
+  .status {
+    max-width: 920px;
+    margin: 6px auto 0;
+    color: var(--muted);
+    font-size: .9rem;
+    padding: 0 4px;
+  }
 
   /* Audio preview modal */
-  .audio-preview { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6,6,8,.82); backdrop-filter: blur(6px); z-index: 50; }
+  .audio-preview {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15,23,42,.35);
+    backdrop-filter: blur(10px);
+    z-index: 50;
+  }
+
   .audio-preview.hidden { display: none; }
-  .audio-card { width: min(560px, calc(100% - 40px)); background: #121217; border: 1px solid var(--border); border-radius: 18px; padding: 24px; display: grid; gap: 14px; }
-  .audio-card h2 { margin: 0; font-size: 1.3rem; }
-  .audio-card textarea { border-radius: 12px; border: 1px solid var(--border); background: #0f1014; color: var(--text); padding: 12px; resize: vertical; min-height: 140px; }
-  .audio-meta { font-size: .85rem; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .audio-actions { display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+
+  .audio-card {
+    width: min(560px, calc(100% - 40px));
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px;
+    display: grid;
+    gap: 14px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+  }
+
+  .audio-card h2 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .audio-card textarea {
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #f9fafb;
+    color: var(--text);
+    padding: 12px;
+    resize: vertical;
+    min-height: 140px;
+  }
+
+  .audio-meta {
+    font-size: .85rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .audio-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
 
   /* Mobile */
   @media (max-width: 980px) {
     .app { grid-template-columns: 1fr; }
-    .sidebar { position: fixed; inset: 0 30% 0 0; z-index: 40; transform: translateX(-105%); transition: transform .2s ease; max-width: 320px; }
-    .sidebar.open { transform: translateX(0); box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+
+    .sidebar {
+      position: fixed;
+      inset: 0 30% 0 0;
+      z-index: 40;
+      transform: translateX(-105%);
+      transition: transform .2s ease;
+      max-width: 320px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.45);
+    }
+
+    .sidebar.open {
+      transform: translateX(0);
+    }
+
     .hamb { display: inline-grid; }
     .session-meta { justify-content: center; }
-    .settings { width: 100%; justify-content: space-between; }
+
+    .settings {
+      width: 100%;
+      justify-content: space-between;
+    }
+
     .settings label { flex: 1; }
-    .composer { grid-template-columns: auto 1fr auto; }
-    .composer .btn.plus { display: none; }
+
+    .composer {
+      grid-template-columns: auto 1fr auto;
+    }
+
+    .composer .btn.plus {
+      display: none;
+    }
   }
 
   @media (max-width: 640px) {
-    .settings { flex-direction: column; align-items: stretch; }
+    .settings {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
     .settings label { width: 100%; }
+
     .goal-tabs { width: 100%; }
     .goal-tab { flex: 1 1 140px; text-align: center; }
+
     .chips { bottom: 140px; }
-    .msg { padding: 14px; }
+    .msg { padding: 12px 14px; }
   }
+  /* REMOVE o card de Dicas */
+.ideas-card {
+  display: none !important;
+}
+
+/* REMOVE os botões da topbar (Nova conversa e Favorita) */
+#renameBtn,
+#favoriteBtn,
+#newThreadBtnMobile {
+  display: none !important;
+}
+
+/* REMOVE também o botão "Nova conversa" dentro da topbar */
+.topbar .pill {
+  display: none !important;
+}
+
+/* MAS manter a estrutura ao lado (sessão-meta) */
+.session-meta {
+  display: none !important;
+}
+
+/* ---------- Barra inferior / composer (fix layout) ---------- */
+
+.composer-wrap {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, transparent, #f5f7fb 40%, #f5f7fb 100%);
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* Usa flex em vez de grid para evitar distorção do campo de texto */
+.composer {
+  max-width: 920px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Botão + (nova conversa) – fica compacto, não estica nada */
+.composer .btn.plus {
+  flex: 0 0 auto;
+}
+
+/* Campo de texto ocupa todo o espaço disponível */
+.input {
+  flex: 1 1 auto;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+  padding: 12px 16px;
+  width: 100%;
+  resize: none;
+  line-height: 1.4;
+  font-size: .95rem;
+}
+
+.input:focus {
+  outline: 2px solid rgba(0,87,255,0.25);
+  outline-offset: 2px;
+  background: #ffffff;
+}
+
+/* Botões laterais (mic e enviar) alinhados e com tamanho fixo */
+.btn {
+  height: 48px;
+  min-width: 44px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f9fafb;
+  color: var(--text);
+  cursor: pointer;
+  transition: background .16s, border .16s, box-shadow .16s, transform .12s;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #0057ff, #2563eb);
+  border-color: #1d4ed8;
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.45);
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+/* Mic com borda “bonita” quando gravando */
+.mic {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.mic.rec {
+  outline: 2px solid var(--accent);
+  box-shadow: 0 0 0 4px rgba(227,6,19,0.16);
+}
+
+/* Botão de enviar também fixo */
+.send {
+  flex: 0 0 auto;
+}
+
+/* Barra de volume interna do mic */
+.vu {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.vu .fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg,#60a5fa,#22c55e);
+  opacity: .25;
+  transition: width .1s linear;
+}
+
+/* Texto de status logo abaixo do composer */
+.status {
+  max-width: 920px;
+  margin: 6px auto 0;
+  color: var(--muted);
+  font-size: .9rem;
+  padding: 0 4px;
+}
+
+/* Layout da linha do histórico */
+.hist-item {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Card principal */
+.hist-open {
+  flex: 1;
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: 0.15s ease;
+  position: relative;
+}
+
+/* Apenas se ativa */
+.hist-open.active {
+  border-color: var(--primary);
+  background: #eef2ff;
+}
+
+/* Título + botão de excluir */
+.hist-open .title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Ícone de excluir */
+.hist-open .hist-delete {
+  opacity: 0;
+  pointer-events: none;
+  border: none;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: 0.15s ease;
+}
+
+/* aparece no hover */
+.hist-open:hover .hist-delete {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Hover do ícone */
+.hist-open .hist-delete:hover {
+  background: #fee2e2;
+}
+
+
+/* Layout fixo: sidebar sempre visível, chat rolando à direita */
+@media (min-width: 981px) {
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    overflow: hidden; /* evita a página inteira rolar */
+  }
+
+  .app {
+    height: 100%;
+    grid-template-columns: 290px 1fr; /* mantém a largura da sidebar */
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    align-self: flex-start;
+    overflow-y: auto; /* se o conteúdo da sidebar crescer, ela rola por dentro */
+  }
+
+  .main {
+    height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr auto; /* topbar, chat, composer */
+    overflow: hidden;
+  }
+
+  .chat {
+    overflow-y: auto;  /* apenas a área de mensagens rola */
+  }
+}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <span class="logo" aria-hidden="true"></span>
-      <strong>LearnAI</strong>
-    </div>
+  <!-- ajuste o caminho do src para o nome do arquivo que você salvar -->
+  <img src="Logo_Ingles.jpeg"
+       alt="Inglês na Boca"
+       class="brand-logo" />
+  <div class="brand-text">
+    <strong>LearnAI</strong>
+    <span>inglês na boca</span>
+  </div>
+</div>
     <button class="new-thread" id="newThreadBtn">➕ Nova conversa</button>
     <div class="progress-card" id="progressCard">
       <h3>Seu progresso</h3>
@@ -213,11 +1086,8 @@
       </ul>
     </div>
     <div class="hist-header">
-      <div class="hist-title">Histórico</div>
-      <button class="clear-history" id="clearHistoryBtn" type="button" aria-label="Excluir todo o histórico">
-        🗑 Limpar
-      </button>
-    </div>
+  <div class="hist-title">Histórico</div>
+</div>
     <div class="hist" id="historyList">
       <div class="empty">Sem conversas ainda.</div>
     </div>
@@ -281,33 +1151,9 @@
 <script>
 const DEFAULT_SETTINGS = { goal: 'conversacao_geral', level: 'intermediario', moduleId: '1 - Destravando para avancar' };
 const GOAL_SUGGESTIONS = {
-  conversacao_geral: [
-    { title: 'Quebre o gelo', body: 'Start a short conversation about your day.', level: 'iniciante' },
-    { title: 'Peça opinião', body: 'Ask for advice about choosing a new hobby.', level: 'intermediario' },
-    { title: 'Compartilhe um sonho', body: 'Describe a place you would love to visit someday.', level: 'avancado' }
-  ],
-  viagens: [
-    { title: 'Check-in no hotel', body: 'Practice checking into a hotel late at night.', level: 'iniciante' },
-    { title: 'Restaurante lotado', body: 'Explain a food allergy to a waiter politely.', level: 'intermediario' },
-    { title: 'Problema no aeroporto', body: 'Negotiate rebooking a cancelled flight.', level: 'avancado' }
-  ],
-  entrevistas: [
-    { title: 'Apresente-se', body: 'Pitch your experience for a junior position.', level: 'iniciante' },
-    { title: 'Pergunta difícil', body: 'Answer a question about handling conflict at work.', level: 'intermediario' },
-    { title: 'Negocie salário', body: 'Discuss salary expectations confidently.', level: 'avancado' }
-  ],
-  exames: [
-    { title: 'Reading practice', body: 'Ask for a short TOEFL-style reading passage and questions.', level: 'intermediario' },
-    { title: 'Speaking task', body: 'Request an IELTS speaking task about technology.', level: 'avancado' },
-    { title: 'Vocabulário chave', body: 'Review useful linking words for essays.', level: 'iniciante' }
-  ],
-  negocios: [
-    { title: 'Reunião curta', body: 'Plan the agenda for a weekly stand-up.', level: 'iniciante' },
-    { title: 'Feedback diplomático', body: 'Give constructive feedback to a teammate.', level: 'intermediario' },
-    { title: 'Pitch estratégico', body: 'Prepare a persuasive pitch for an investor.', level: 'avancado' }
-  ]
+  'conversacao_geral': ['Praticar conversação geral', 'Pedir dicas para melhorar meu inglês', 'Fazer perguntas sobre gramática']
 };
-const WELCOME_MESSAGE = `Olá! Eu sou o seu coach pessoal de inglês. Escolha um objetivo na parte superior, explore as sugestões abaixo ou envie uma pergunta. Vou responder com explicações, tradução e próximos passos para o seu estudo.`;
+const WELCOME_MESSAGE = `Olá! Eu sou a sua professora de inglês no estilo Fran. Selecione o módulo em que você está no canto superior direito ou me mande sua dúvida. Eu te explico tudo do jeito claro, simples e prático, igual a Fran faz nas aulas, até você realmente falar inglês.`;
 const REQUEST_TIMEOUT_MS = 45000;
 
 const chatEl = document.getElementById('chat');
@@ -448,7 +1294,6 @@ function renderProgress() {
 
 function renderChips() {
   chipsEl.innerHTML = '';
-  const data = GOAL_SUGGESTIONS[settings.goal] || [];
   data.forEach(item => {
     if (item.level !== settings.level && settings.level !== 'intermediario') {
       if (settings.level === 'iniciante' && item.level === 'avancado') return;
@@ -508,30 +1353,78 @@ function chipsVisible(visible) {
 
 function renderHistory() {
   historyList.innerHTML = '';
-  const ids = Object.keys(threads).sort((a, b) => (threads[b].createdAt || 0) - (threads[a].createdAt || 0));
+  const ids = Object.keys(threads).sort(
+    (a, b) => (threads[b].createdAt || 0) - (threads[a].createdAt || 0)
+  );
+
   if (!ids.length) {
     historyList.innerHTML = '<div class="empty">Sem conversas ainda.</div>';
     return;
   }
+
   ids.forEach(id => {
     const t = threads[id];
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = id === currentThreadId ? 'active' : '';
-    btn.innerHTML = `
-      <div class="title">
-        <span>${escapeHTML(t.title || 'Sem título')}</span>
-        <span>${t.favorite ? '★' : ''}</span>
-      </div>
+
+    // wrapper do item
+    const item = document.createElement('div');
+    item.className = 'hist-item';
+
+    // botão para abrir a conversa (usa o estilo padrão .hist button)
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 'hist-open' + (id === currentThreadId ? ' active' : '');
+    openBtn.innerHTML = `
+    
       <div class="meta">
         <span>Mensagens: ${t.messages.length}</span>
         <span>${t.messages.length ? new Date(t.createdAt).toLocaleDateString() : ''}</span>
-      </div>`;
-    btn.addEventListener('click', () => openThread(id));
-    historyList.appendChild(btn);
+      </div>
+    `;
+    openBtn.addEventListener('click', () => openThread(id));
+
+    // botão de excluir APENAS essa conversa
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'hist-delete';
+    delBtn.innerHTML = '🗑 Excluir';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // não abre a conversa
+      if (confirm('Tem certeza que deseja excluir esta conversa?')) {
+        deleteThread(id);
+      }
+    });
+
+    item.appendChild(openBtn);
+    item.appendChild(delBtn);
+    historyList.appendChild(item);
   });
 }
 
+
+function deleteThread(id) {
+  if (!threads[id]) return;
+
+  const isCurrent = id === currentThreadId;
+  delete threads[id];
+  saveThreads(threads);
+
+  const remainingIds = Object.keys(threads);
+  if (!remainingIds.length) {
+    currentThreadId = null;
+    ensureCurrentThread();
+  } else if (isCurrent) {
+    // se apagou a conversa aberta, abre a mais recente
+    currentThreadId = remainingIds.sort(
+      (a, b) => (threads[b].createdAt || 0) - (threads[a].createdAt || 0)
+    )[0];
+  }
+
+  setLastThreadId(currentThreadId);
+  renderHistory();
+  openThread(currentThreadId);
+  renderProgress();
+  setStatus('Conversa excluída.');
+}
 function clearHistory() {
   const hasThreads = Object.keys(threads).length > 0;
   if (!hasThreads) return;
@@ -619,16 +1512,10 @@ function renderAssistantMessage(message, save = true, temporary = false) {
   <div class="label">Coach LearnAI</div>
   <div>${formatText(message.text || meta.reply || '')}</div>
   ${meta.translation ? `<div class="translation"><strong>Tradução:</strong><br>${formatText(meta.translation)}</div>` : ''}
-  ${meta.grammarNotes ? `<details open><summary>Explicação</summary><p>${formatText(meta.grammarNotes)}</p></details>` : ''}
-  ${vocabList ? `<details><summary>Vocabulário</summary><ul>${vocabList}</ul></details>` : ''}
-  ${meta.followUpQuestion ? `<div><strong>Próxima pergunta:</strong> ${formatText(meta.followUpQuestion)}</div>` : ''}
-  ${Array.isArray(meta.extraSuggestions) && meta.extraSuggestions.length ? `<details><summary>Continue praticando</summary><ul>${meta.extraSuggestions.map(s => `<li>${formatText(s)}</li>`).join('')}</ul></details>` : ''}
-  ${meta.culturalTip ? `<div><span class="tag"><span class="dot" style="background:${confidenceColor}"></span>${escapeHTML(meta.confidence ? `confiança ${meta.confidence}` : 'dica')}</span><br>${formatText(meta.culturalTip)}</div>` : ''}
+   ${meta.culturalTip ? `<div><span class="tag"><span class="dot" style="background:${confidenceColor}"></span>${escapeHTML(meta.confidence ? `confiança ${meta.confidence}` : 'dica')}</span><br>${formatText(meta.culturalTip)}</div>` : ''}
   ${sourcesHtml}
   ${temporary ? '' : `<div class="actions" role="group" aria-label="Ações desta resposta">
     <button type="button" data-action="tts">🔊 Ouvir resposta</button>
-    <button type="button" data-feedback="entendi">👍 Entendi</button>
-    <button type="button" data-feedback="duvidas">🤔 Ainda tenho dúvidas</button>
   </div>`}
 `;
 

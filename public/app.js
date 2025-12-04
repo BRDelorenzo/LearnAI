@@ -4,7 +4,7 @@ const API_BASE_URL = '';
 
 const DEFAULT_SETTINGS = { goal: 'conversacao_geral', level: 'intermediario', moduleId: '1 - Destravando para avancar' };
 const GOAL_SUGGESTIONS = {
-  'conversacao_geral': ['Praticar conversação geral', 'Pedir dicas para melhorar meu inglês', 'Fazer perguntas sobre gramática']
+  'conversacao_geral': ['Em quais temas você pode me ajudar?']
 };
 const WELCOME_MESSAGE = `Olá! Eu sou a sua professora de inglês no estilo Fran. Selecione o módulo em que você está no canto superior direito ou me mande sua dúvida. Eu te explico tudo do jeito claro, simples e prático, igual a Fran faz nas aulas, até você realmente falar inglês.`;
 const REQUEST_TIMEOUT_MS = 45000;

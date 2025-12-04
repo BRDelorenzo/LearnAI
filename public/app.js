@@ -42,8 +42,9 @@ const sidebarOverlay = document.getElementById('sidebarOverlay');
 
 let mediaRecorder, chunks = [], mime = '', audioContext, analyser, monitorInterval, rmsSmooth = 0, recordStartedAt = null, countdownTimer = null;
 let currentThreadId = null;
-let ttsAudio = null; // para controlar o áudio da resposta
-
+let ttsAudio = null;              // áudio atual
+let currentTtsMessageId = null;   // id da mensagem atual em reprodução
+let currentTtsBtn = null;         // botão associado a essa mensagem
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem('learnai-settings') || '{}'); } catch { return {}; }
 }
@@ -130,6 +131,37 @@ function formatText(str = '') {
 }
 function countWords(str = '') {
   return (str.trim().match(/\b\w+\b/g) || []).length;
+}
+
+
+function typeWriter(el, fullText = '', onDone = null) {
+  if (!fullText) {
+    el.innerHTML = '';
+    if (onDone) onDone();
+    return;
+  }
+
+  const total = fullText.length;
+  let index = 0;
+
+  // Velocidade adaptativa: textos muito longos andam aos "pedaços"
+  const baseDelay = 18; // ms
+  const stepSize = total > 1200 ? 3 : total > 600 ? 2 : 1;
+
+  function step() {
+    index += stepSize;
+    const sliced = fullText.slice(0, index);
+    el.innerHTML = formatText(sliced);
+    chatEl.scrollTop = chatEl.scrollHeight;
+
+    if (index < total) {
+      setTimeout(step, baseDelay);
+    } else {
+      if (onDone) onDone();
+    }
+  }
+
+  step();
 }
 
 function newId() { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`; }
@@ -322,7 +354,12 @@ function clearHistory() {
 function renderThreadMessages(thread) {
   chatEl.innerHTML = '';
   thread.messages.forEach(msg => {
-    renderMessage(msg, false);
+    if (msg.role === 'assistant') {
+      // terceiro parâmetro = temporary = true → sem animação
+      renderAssistantMessage(msg, false, true);
+    } else {
+      renderUserMessage(msg, false);
+    }
   });
   chatEl.scrollTop = chatEl.scrollHeight;
   updateSessionMeta();
@@ -331,7 +368,6 @@ function renderThreadMessages(thread) {
     renderWelcome();
   }
 }
-
 function renderWelcome() {
   const welcome = {
     id: 'welcome',
@@ -371,36 +407,75 @@ function renderUserMessage(message, save = true) {
   }
 }
 
+
+
 function renderAssistantMessage(message, save = true, temporary = false) {
   const div = document.createElement('div');
   div.className = 'msg bot';
   if (temporary) div.setAttribute('data-temporary', 'true');
   div.setAttribute('data-id', message.id || 'temp');
-  const meta = message.meta || {};
-  const confidenceColor = meta.confidence === 'baixa' ? 'var(--danger)' : meta.confidence === 'media' ? 'var(--warning)' : 'var(--accent)';
-  const vocabList = Array.isArray(meta.vocabulary) ? meta.vocabulary.map(item => `<li><strong>${escapeHTML(item.term || '')}:</strong> ${escapeHTML(item.meaning || '')}<br><em>${escapeHTML(item.example || '')}</em></li>`).join('') : '';
-  const sourcesHtml = (Array.isArray(meta.sources) && meta.sources.length)
-  ? `<div style="opacity:.85;font-size:.8rem;display:flex;flex-wrap:wrap;gap:6px">
-       <span style="color:var(--muted)">Fontes:</span>
-       ${meta.sources.map(s => 
-         `<span class="pill" title="${escapeHTML(s.source)}" style="padding:4px 8px">${s.idx}</span>`
-       ).join('')}
-     </div>`
-  : '';
-  div.innerHTML = `
-  <div class="label">Coach LearnAI</div>
-  <div>${formatText(message.text || meta.reply || '')}</div>
-  ${meta.translation ? `<div class="translation"><strong>Tradução:</strong><br>${formatText(meta.translation)}</div>` : ''}
-   ${meta.culturalTip ? `<div><span class="tag"><span class="dot" style="background:${confidenceColor}"></span>${escapeHTML(meta.confidence ? `confiança ${meta.confidence}` : 'dica')}</span><br>${formatText(meta.culturalTip)}</div>` : ''}
-  ${sourcesHtml}
-  ${temporary ? '' : `<div class="actions" role="group" aria-label="Ações desta resposta">
-    <button type="button" data-action="tts">🔊 Ouvir resposta</button>
-  </div>`}
-`;
 
+  const meta = message.meta || {};
+  const confidenceColor =
+    meta.confidence === 'baixa'
+      ? 'var(--danger)'
+      : meta.confidence === 'media'
+      ? 'var(--warning)'
+      : 'var(--accent)';
+
+  const sourcesHtml =
+    Array.isArray(meta.sources) && meta.sources.length
+      ? `<div style="opacity:.85;font-size:.8rem;display:flex;flex-wrap:wrap;gap:6px">
+           <span style="color:var(--muted)">Fontes:</span>
+           ${meta.sources
+             .map(
+               (s) =>
+                 `<span class="pill" title="${escapeHTML(
+                   s.source
+                 )}" style="padding:4px 8px">${s.idx}</span>`
+             )
+             .join('')}
+         </div>`
+      : '';
+
+  const rawReplyText = message.text || meta.reply || '';
+
+  div.innerHTML = `
+    <div class="label">Coach LearnAI</div>
+    <div class="reply-text"></div>
+    ${
+      meta.translation
+        ? `<div class="translation"><strong>Tradução:</strong><br>${formatText(
+            meta.translation
+          )}</div>`
+        : ''
+    }
+    ${
+      meta.culturalTip
+        ? `<div><span class="tag">
+             <span class="dot" style="background:${confidenceColor}"></span>
+             ${escapeHTML(meta.confidence ? `confiança ${meta.confidence}` : 'dica')}
+           </span><br>${formatText(meta.culturalTip)}</div>`
+        : ''
+    }
+    ${sourcesHtml}
+    ${
+      temporary
+        ? ''
+        : `<div class="actions" role="group" aria-label="Ações desta resposta">
+             <button type="button"
+                     data-action="tts"
+                     data-play-label="🔊 Ouvir resposta">
+               🔊 Ouvir resposta
+             </button>
+           </div>`
+    }
+  `;
+
+  // Só adiciona listeners quando NÃO for mensagem "temporária" (ex: histórico)
   if (!temporary) {
-    // Botões de feedback ("Entendi" / "Ainda tenho dúvidas")
-    div.querySelectorAll('.actions button[data-feedback]').forEach(btn => {
+    // (se um dia você quiser feedback tipo “entendi/tenho dúvida”, já tá preparado)
+    div.querySelectorAll('.actions button[data-feedback]').forEach((btn) => {
       btn.addEventListener('click', () => {
         registerFeedback(message.id, btn.dataset.feedback);
         btn.classList.add('active');
@@ -408,7 +483,7 @@ function renderAssistantMessage(message, save = true, temporary = false) {
       });
     });
 
-    // Botão de TTS ("Ouvir resposta")
+    // Botão de TTS ("Ouvir resposta" / pause)
     const ttsBtn = div.querySelector('.actions button[data-action="tts"]');
     if (ttsBtn) {
       ttsBtn.addEventListener('click', () => {
@@ -417,8 +492,32 @@ function renderAssistantMessage(message, save = true, temporary = false) {
     }
   }
 
+  // Adiciona a mensagem no chat
   chatEl.appendChild(div);
   chatEl.scrollTop = chatEl.scrollHeight;
+
+  if (!temporary) {
+    // Mensagens novas: efeito de digitação
+    const replyEl = div.querySelector('.reply-text');
+    if (replyEl) {
+      typeWriter(replyEl, rawReplyText || '', () => {
+        chatEl.scrollTop = chatEl.scrollHeight;
+      });
+    } else if (rawReplyText) {
+      // fallback, se por algum motivo não achar o reply-text
+      div.insertAdjacentHTML(
+        'afterbegin',
+        `<div>${formatText(rawReplyText)}</div>`
+      );
+    }
+  } else {
+    // Histórico (temporary=true): mostra o texto direto, sem animação
+    const replyEl = div.querySelector('.reply-text');
+    if (replyEl) {
+      replyEl.innerHTML = formatText(rawReplyText || '');
+    }
+  }
+
   if (save && !temporary) {
     pushMsgToThread(currentThreadId, message);
   }
@@ -597,33 +696,69 @@ async function playTTSForMessage(message, btn) {
     return;
   }
 
-  const originalLabel = btn.textContent;
+  const playLabel = btn.dataset.playLabel || '🔊 Ouvir resposta';
+  const pauseLabel = '⏸️ Pausar áudio';
+
+  // Se já estamos tocando ESTA mensagem, então clicar = PAUSAR
+  if (ttsAudio && !ttsAudio.paused && currentTtsMessageId === message.id) {
+    ttsAudio.pause();
+    btn.textContent = playLabel;
+    setStatus('Áudio pausado. Clique de novo para continuar.');
+    return;
+  }
+
+  // Se temos áudio pausado da mesma mensagem, clicar = RETOMAR
+  if (ttsAudio && ttsAudio.paused && currentTtsMessageId === message.id && message.meta?.ttsUrl) {
+    ttsAudio.play().catch(err => {
+      console.error(err);
+      setStatus('Não consegui retomar o áudio.');
+    });
+    btn.textContent = pauseLabel;
+    setStatus('Reproduzindo a resposta em inglês.');
+    return;
+  }
+
+  // Se vamos começar um novo áudio, reseta o botão anterior
+  if (currentTtsBtn && currentTtsBtn !== btn) {
+    const prevLabel = currentTtsBtn.dataset.playLabel || '🔊 Ouvir resposta';
+    currentTtsBtn.textContent = prevLabel;
+  }
+
+  const originalLabel = playLabel;
+  currentTtsBtn = btn;
+  currentTtsMessageId = message.id;
+
   try {
     btn.disabled = true;
     btn.textContent = '🔊 Gerando áudio…';
     setStatus('Gerando áudio da resposta…');
 
-    const res = await requestWithTimeout(API_BASE_URL + '/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    });
+    // Se já temos uma URL em cache, não chama o backend de novo
+    let url = message.meta?.ttsUrl;
+    if (!url) {
+      const res = await requestWithTimeout('/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      throw new Error(`Erro TTS: ${res.status} ${errText}`);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Erro TTS: ${res.status} ${errText}`);
+      }
+
+      const blob = await res.blob();
+      url = URL.createObjectURL(blob);
+      if (!message.meta) message.meta = {};
+      message.meta.ttsUrl = url;  // cache p/ futuros plays
     }
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-
-    // para não ficar vários áudios tocando
+    // Para não ficar vários áudios tocando
     if (ttsAudio) {
       ttsAudio.pause();
-      try { URL.revokeObjectURL(ttsAudio.src); } catch {}
     }
 
-    ttsAudio = new Audio(url);
+    ttsAudio = new Audio(message.meta.ttsUrl);
     ttsAudio.play().catch(err => {
       console.error(err);
       setStatus('Não consegui reproduzir o áudio.');
@@ -632,8 +767,13 @@ async function playTTSForMessage(message, btn) {
     ttsAudio.onended = () => {
       btn.disabled = false;
       btn.textContent = originalLabel;
+      currentTtsMessageId = null;
+      currentTtsBtn = null;
+      setStatus('Áudio finalizado.');
     };
 
+    btn.disabled = false;
+    btn.textContent = pauseLabel;
     setStatus('Reproduzindo a resposta em inglês.');
   } catch (err) {
     console.error(err);

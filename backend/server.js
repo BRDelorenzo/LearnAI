@@ -510,18 +510,14 @@ A resposta DEVE SEMPRE seguir exatamente este JSON:
 
 {
   "reply": "...",
-  "translation": "...",
   "coachFeedback": {
       "correction": "...",
       "tip": "...",
-      "explanation": "...",
-      "improvedExample": "..."
   }
 }
 
 Obrigatório:
 - "reply": mensagem principal no JEITO FRANCIS, divertida, acolhedora e baseada nos EXEMPLOS DO MÓDULO.
-- "translation": tradução para portugues somente as palavras em inglês da reply.
 - "coachFeedback": só usar se o aluno escreveu algo; se o usuário não praticou, pode deixar vazio ou nulo.
 
 -----------------------------------

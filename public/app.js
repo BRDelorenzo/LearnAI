@@ -3,7 +3,7 @@
 const API_BASE_URL =
   window.location.hostname.includes('localhost')
     ? '' // Dev: usa o mesmo backend local
-    : 'https://learnai-5y95.onrender.com/'; // Prod: backend do Render
+    : 'https://learnai-5y95.onrender.com'; // Prod: backend do Render
 
 
 const DEFAULT_SETTINGS = { goal: 'conversacao_geral', level: 'intermediario', moduleId: '1 - Destravando para avancar' };

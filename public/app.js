@@ -6,7 +6,7 @@ const DEFAULT_SETTINGS = { goal: 'conversacao_geral', level: 'intermediario', mo
 const GOAL_SUGGESTIONS = {
   'conversacao_geral': ['Em quais temas você pode me ajudar?']
 };
-const WELCOME_MESSAGE = `Olá! Eu sou a sua professora de inglês no estilo Fran. Selecione o módulo em que você está no canto superior direito ou me mande sua dúvida. Eu te explico tudo do jeito claro, simples e prático, igual a Fran faz nas aulas, até você realmente falar inglês.`;
+const WELCOME_MESSAGE = `Olá! Eu sou a sua professora de inglês no estilo Fran. Selecione o módulo em que você está no canto superior esquerdo ou me mande sua dúvida. Eu te explico tudo do jeito claro, simples e prático, igual a Fran faz nas aulas, até você realmente falar inglês.`;
 const REQUEST_TIMEOUT_MS = 45000;
 
 const chatEl = document.getElementById('chat');

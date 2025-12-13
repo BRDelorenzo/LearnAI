@@ -237,7 +237,7 @@ function redactKey(str) {
     "$1…"
   );
 }
-
+//comentario pra fazer um commit
 function normalizeOpenAIError(error) {
   if (error?.name === "AbortError") {
     return {

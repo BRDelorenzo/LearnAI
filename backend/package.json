@@ -20,6 +20,7 @@
     "express-rate-limit": "^7.4.1",
     "fluent-ffmpeg": "^2.1.2",
     "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
     "openai": "^6.7.0"
   }

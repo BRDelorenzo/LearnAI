@@ -1,5 +1,47 @@
 
-const API_BASE_URL = ''; 
+const API_BASE_URL =
+  location.hostname === "localhost" || location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : "https://learnai-5y95.onrender.com";
+
+// ---------------------- AUTENTICAÇÃO NO FRONT ----------------------
+function getToken() {
+  return localStorage.getItem("token");
+}
+
+function redirectToLogin() {
+  // evita loop se já estiver no login
+  if (!location.pathname.endsWith("login.html")) {
+    window.location.href = "login.html";
+  }
+}
+
+// Se não tiver token → volta para login
+if (!getToken()) {
+  redirectToLogin();
+}
+
+// Fetch que injeta Authorization e trata 401
+async function authedFetch(url, options = {}) {
+  const token = getToken();
+  if (!token) {
+    redirectToLogin();
+    throw new Error("Sem token. Redirecionando para login.");
+  }
+
+  const headers = new Headers(options.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    redirectToLogin();
+    throw new Error("401 (token ausente/expirado). Redirecionando para login.");
+  }
+
+  return res;
+}
 
 
 const DEFAULT_SETTINGS = { goal: 'conversacao_geral', level: 'intermediario', moduleId: '1 - Destravando para avancar' };
@@ -88,8 +130,9 @@ function setStatus(msg) {
 async function requestWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await authedFetch(url, { ...options, signal: controller.signal });
   } catch (err) {
     if (err.name === 'AbortError') {
       throw new Error('O servidor demorou para responder. Tente novamente.');

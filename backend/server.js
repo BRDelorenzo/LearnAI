@@ -13,13 +13,79 @@ import path from "path";
 import { fileURLToPath } from "url";
 import compression from "compression";
 import morgan from "morgan";
+import jwt from "jsonwebtoken";
 
-/* ---------- __dirname em ESM ---------- */
+/* ---------- __dirname em ESM (precisa vir antes do dotenv) ---------- */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /* ---------- .env (carregado do backend/.env) ---------- */
 dotenv.config({ path: path.join(__dirname, ".env") });
+
+/* ---------- App Express ---------- */
+const app = express();
+
+/* ---------- Body parsers (antes de /login) ---------- */
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+/* ---------- allowedEmails.json (precisa vir antes de /login) ---------- */
+const allowedEmailsPath = path.join(__dirname, "allowedEmails.json");
+let allowedEmails = [];
+try {
+  const parsed = JSON.parse(fs.readFileSync(allowedEmailsPath, "utf8"));
+  allowedEmails = Array.isArray(parsed)
+    ? parsed.map((e) => String(e).toLowerCase().trim())
+    : [];
+} catch (e) {
+  console.warn("⚠️ Falha ao ler allowedEmails.json:", e.message);
+  allowedEmails = [];
+}
+
+/* ---------- FFmpeg path (já que você importou) ---------- */
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+// ---------------------- LOGIN ----------------------
+app.post("/login", (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email obrigatório" });
+  }
+
+  const normalized = email.toLowerCase();
+
+  if (!allowedEmails.includes(normalized)) {
+    return res.status(403).json({ error: "Email não autorizado" });
+  }
+
+  const token = jwt.sign({ email: normalized }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+
+  res.json({ token });
+});
+
+// ---------------------- MIDDLEWARE JWT ----------------------
+function authRequired(req, res, next) {
+  const auth = req.headers.authorization;
+
+  if (!auth) {
+    return res.status(401).json({ error: "Token ausente" });
+  }
+
+  const token = auth.replace("Bearer ", "");
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Token inválido ou expirado" });
+  }
+}
+
+
 
 const PORT = process.env.PORT || 3000;
 const OPENAI_TIMEOUT_MS = Number.parseInt(
@@ -52,16 +118,30 @@ if (!openaiApiKey) {
   );
 }
 
-/* ---------- App Express ---------- */
-const app = express();
-
 /* ---------- Segurança básica ---------- */
 app.disable("x-powered-by"); // não mostrar que é Express
 
 app.use(
   helmet({
-    crossOriginResourcePolicy: false, // para servir front/áudio sem conflito
-    contentSecurityPolicy: false, // se quiser CSP depois, configuramos certinho
+    crossOriginResourcePolicy: false,
+    // agora a gente LIGA o CSP com frame-ancestors no header
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "img-src": ["'self'", "data:"],
+        "media-src": ["'self'", "blob:"],
+        "connect-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "font-src": ["'self'", "data:"],
+        "frame-ancestors": ["'none'"],
+        "base-uri": ["'self'"],
+        "form-action": ["'self'"],
+      },
+    },
+    // X-Frame-Options via header
+    frameguard: { action: "deny" },
   })
 );
 
@@ -313,8 +393,10 @@ app.get("/health", (_, res) =>
 );
 
 /* ---------- Transcrição ---------- */
-app.post("/transcrever", upload.single("file"), async (req, res) => {
-  if (!ensureOpenAI(res)) return;
+
+app.post("/transcrever", authRequired, async (req, res) => {
+  // ... seu código ...
+    if (!ensureOpenAI(res)) return;
   if (!req.file) {
     return res.status(400).json({ error: "Nenhum arquivo enviado." });
   }
@@ -377,8 +459,11 @@ app.post("/transcrever", upload.single("file"), async (req, res) => {
   }
 });
 
-/* ---------- Chat (RAG por módulo) ---------- */
-app.post("/chat", async (req, res) => {
+
+
+// ---------------------- PROTEGER SUAS ROTAS ----------------------
+app.post("/chat", authRequired, async (req, res) => {
+  // ... SEU CÓDIGO ATUAL DO CHAT ...
   try {
     if (!ensureOpenAI(res)) return;
     const {
@@ -635,8 +720,10 @@ ${context}
 });
 
 /* ---------- TTS (texto -> fala) ---------- */
-app.post("/tts", async (req, res) => {
-  try {
+
+app.post("/tts", authRequired, async (req, res) => {
+  // ... seu código ...
+   try {
     if (!ensureOpenAI(res)) return;
     const { text } = req.body || {};
 

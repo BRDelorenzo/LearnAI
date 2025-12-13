@@ -31,15 +31,32 @@ app.use(express.urlencoded({ extended: true }));
 
 /* ---------- allowedEmails.json (precisa vir antes de /login) ---------- */
 const allowedEmailsPath = path.join(__dirname, "allowedEmails.json");
+/* ---------- allowed emails (ENV → JSON → vazio) ---------- */
 let allowedEmails = [];
-try {
-  const parsed = JSON.parse(fs.readFileSync(allowedEmailsPath, "utf8"));
-  allowedEmails = Array.isArray(parsed)
-    ? parsed.map((e) => String(e).toLowerCase().trim())
-    : [];
-} catch (e) {
-  console.warn("⚠️ Falha ao ler allowedEmails.json:", e.message);
-  allowedEmails = [];
+
+// 1) Produção/Render: ENV
+if (process.env.ALLOWED_EMAILS && process.env.ALLOWED_EMAILS.trim()) {
+  allowedEmails = process.env.ALLOWED_EMAILS
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  console.log("🔐 allowedEmails via ENV:", allowedEmails.length);
+} else {
+  // 2) Dev/local: JSON
+  try {
+    const allowedEmailsPath = path.join(__dirname, "allowedEmails.json");
+    const parsed = JSON.parse(fs.readFileSync(allowedEmailsPath, "utf8"));
+
+    allowedEmails = Array.isArray(parsed)
+      ? parsed.map((e) => String(e).trim().toLowerCase())
+      : [];
+
+    console.log("🔐 allowedEmails via JSON:", allowedEmails.length);
+  } catch (e) {
+    console.warn("⚠️ allowedEmails não configurado (ENV/JSON).");
+    allowedEmails = [];
+  }
 }
 
 /* ---------- FFmpeg path (já que você importou) ---------- */
@@ -53,11 +70,10 @@ app.post("/login", (req, res) => {
     return res.status(400).json({ error: "Email obrigatório" });
   }
 
-  const normalized = email.toLowerCase();
-
-  if (!allowedEmails.includes(normalized)) {
-    return res.status(403).json({ error: "Email não autorizado" });
-  }
+  const normalized = String(email).trim().toLowerCase();
+if (!allowedEmails.includes(normalized)) {
+  return res.status(403).json({ error: "Email não autorizado" });
+}
 
   const token = jwt.sign({ email: normalized }, process.env.JWT_SECRET, {
     expiresIn: "7d",

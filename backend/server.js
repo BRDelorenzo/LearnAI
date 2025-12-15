@@ -410,8 +410,8 @@ app.get("/health", (_, res) =>
 
 /* ---------- Transcrição ---------- */
 
-app.post("/transcrever", authRequired, async (req, res) => {
-  // ... seu código ...
+app.post("/transcrever", authRequired, upload.single("file"), async (req, res) => {
+    // ... seu código ...
     if (!ensureOpenAI(res)) return;
   if (!req.file) {
     return res.status(400).json({ error: "Nenhum arquivo enviado." });
